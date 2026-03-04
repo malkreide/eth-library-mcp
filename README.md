@@ -154,4 +154,4 @@ MCP_TRANSPORT=sse PORT=8000 python -m eth_library_mcp.server
 
 ---
 
-*Entwickelt vom Schulamt der Stadt Zürich als Teil der MCP-Server-Ökosystems für Schweizer Open Data.*
+*Entwickelt vals Teil der MCP-Server-Ökosystems für Schweizer Open Data.*
