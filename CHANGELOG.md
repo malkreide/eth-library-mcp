@@ -5,6 +5,29 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ---
 
+## [0.3.0] – 2026-03-13
+
+### Behoben
+- **BUG-02** Persons-API komplett neu implementiert basierend auf offizieller OpenAPI-Spec ([persons-v1.yaml](https://raw.githubusercontent.com/eth-library/opendata-apis/main/persons-v1.yaml)):
+  - Ursache: `eth_search_persons` nutzte den nicht existierenden Endpunkt `/persons/v1/persons?q=...` (HTTP 404)
+  - Die API bietet keine Freitext-Suche, sondern zwei spezifische Endpunkte
+
+### Hinzugefügt
+- **`eth_list_persons`** (Tool): Personenliste aus Datenpools abrufen (Endpunkt: `GET /{code}`)
+  - Datenpools: `hsa` (Hochschularchiv), `ba` (Bildarchiv), `erara` (e-rara), `mfa` (Max Frisch-Archiv), `sar` (alle)
+- **`eth_get_person`** (Tool): Personen-Enrichment via Wikidata QID oder GND-ID (Endpunkt: `GET /enrichment`)
+  - Liefert angereicherte Daten aus Wikidata, Metagrid, DNB Entityfacts, beacon.findbuch
+- **`PersonsSourceCode`** Typ-Alias für Datenpools in `api_client.py`
+- **`PERSONS_SOURCES`** Dict mit Datenpool-Beschreibungen
+- **`format_person_enrichment()`** Formatierungsfunktion für Enrichment-Daten
+- **`eth://persons-sources`** MCP Resource für verfügbare Personen-Datenpools
+
+### Entfernt
+- **`eth_search_persons`** (Tool): Entfernt, da der Endpunkt nie existierte
+- **`SearchPersonsInput`** (Modell): Durch `ListPersonsInput` und `GetPersonInput` ersetzt
+
+---
+
 ## [0.2.0] – 2026-03-04
 
 ### Behoben
@@ -18,7 +41,7 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 - **BUG-05** Ungenutzte Konstanten `RESEARCH_BASE_URL` und `ETHORAMA_BASE_URL` aus `api_client.py` entfernt
 
 ### Bekannte Probleme
-- **BUG-02** Persons-API-Endpunkt (`/persons/v1/persons`) gibt HTTP 404 zurück. Die korrekte URL muss via [developer.library.ethz.ch](https://developer.library.ethz.ch) verifiziert werden. Das Tool `eth_search_persons` ist strukturell korrekt implementiert, aber erst nach URL-Verifikation funktionsfähig.
+- **BUG-02** ~~Persons-API-Endpunkt gibt HTTP 404 zurück~~ → Behoben in v0.3.0
 
 ---
 

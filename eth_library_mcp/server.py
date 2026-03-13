@@ -7,13 +7,19 @@ Ressourcen der grössten naturwissenschaftlichen Bibliothek der Schweiz.
 
 APIs:
   - Discovery API:          30+ Mio. Bücher, Bilder, Zeitschriften, Karten
-  - Persons API:            Personen mit Linked-Data-Anreicherung (Wikidata)
-                            ⚠ Endpunkt-URL muss via developer.library.ethz.ch
-                              verifiziert werden (BUG-02 – aktuelle URL gibt 404)
+  - Persons API:            Personen mit Linked-Data-Anreicherung (Wikidata, GND)
+                            Endpunkte: /{code} (Personenliste), /enrichment (Lookup)
 
 Authentifizierung:
   Kostenloser API-Key via https://developer.library.ethz.ch
   Umgebungsvariable: ETH_LIBRARY_API_KEY
+
+Changelog v0.3.0:
+  - BUG-02 BEHOBEN: Persons-API komplett neu implementiert
+    - eth_search_persons entfernt (Endpunkt existierte nicht)
+    - NEU: eth_list_persons → GET /{code} (Personenliste nach Datenpool)
+    - NEU: eth_get_person → GET /enrichment (Lookup via QID/GND-ID)
+    - Korrekte Endpunkte laut offizieller OpenAPI-Spec (persons-v1.yaml)
 
 Changelog v0.2.0:
   - BUG-01 BEHOBEN: pyproject.toml Package-Pfad korrigiert (src/ entfernt)
@@ -22,7 +28,6 @@ Changelog v0.2.0:
   - BUG-05 BEHOBEN: Ungenutzte Konstanten aus api_client entfernt
   - BUG-06 BEHOBEN: Persons-Response-Parsing robust (data/items/hits Keys)
   - BUG-07 BEHOBEN: Kontext-spezifische 404-Fehlermeldung
-  - OFFEN BUG-02: Persons-API-URL muss manuell verifiziert werden
 """
 
 import json
@@ -36,12 +41,15 @@ from .api_client import (
     ARCHIVE_SOURCES,
     DISCOVERY_BASE_URL,
     PERSONS_BASE_URL,
+    PERSONS_SOURCES,
     RESOURCE_TYPES,
     SORT_OPTIONS,
     ArchiveKey,
+    PersonsSourceCode,
     ResourceType,
     SortOption,
     eth_api_request,
+    format_person_enrichment,
     format_resource_detail,
     format_resource_summary,
     handle_api_error,
@@ -56,7 +64,8 @@ mcp = FastMCP(
         "MCP Server für die ETH-Bibliothek Zürich. "
         "Bietet Zugriff auf über 30 Millionen Bücher, Zeitschriften, Bilder, Karten "
         "und Archivmaterialien via Discovery API (api.library.ethz.ch). "
-        "Ebenfalls verfügbar: Personen-Suche mit Wikidata-Verlinkung. "
+        "Ebenfalls verfügbar: Personenlisten aus Archiven und Personen-Enrichment "
+        "mit Wikidata/GND-Verlinkung via Persons API. "
         "Bekannte Archive: Hochschularchiv ETH, Max Frisch Archiv, Thomas-Mann-Archiv, "
         "Graphische Sammlung, Bildarchiv (E-Pics). "
         "Für den Zugriff ist ein kostenloser API-Key erforderlich "
@@ -512,105 +521,187 @@ async def eth_search_by_type(params: SearchByTypeInput) -> str:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# TOOL 5: Personen suchen
+# TOOL 5: Personenliste aus Datenpool
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-class SearchPersonsInput(BaseModel):
-    """Input für die Personensuche."""
+class ListPersonsInput(BaseModel):
+    """Input für die Personenliste aus einem Datenpool."""
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
-    query: str = Field(
-        ...,
+    source: PersonsSourceCode = Field(
+        default="sar",
         description=(
-            "Name oder Stichwort zur Personensuche. "
-            "Beispiele: 'Einstein', 'Einstein Albert', 'Frisch Max'"
+            "Datenpool-Code. Verfügbare Quellen: "
+            f"{json.dumps(PERSONS_SOURCES, ensure_ascii=False)}. "
+            "'sar' liefert Personen aus allen Quellen."
         ),
-        min_length=2,
-        max_length=200,
     )
-    limit: int = Field(default=10, description="Anzahl Ergebnisse (1–50)", ge=1, le=50)
 
 
 @mcp.tool(
-    name="eth_search_persons",
+    name="eth_list_persons",
     annotations={
-        "title": "ETH-Bibliothek Personen suchen",
+        "title": "ETH-Bibliothek Personenliste abrufen",
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
         "openWorldHint": True,
     },
 )
-async def eth_search_persons(params: SearchPersonsInput) -> str:
+async def eth_list_persons(params: ListPersonsInput) -> str:
     """
-    Sucht Personen in der ETH-Bibliothek Persons API.
+    Ruft eine Personenliste aus einem ETH-Archiv-Datenpool ab.
 
-    ⚠ HINWEIS BUG-02: Der Persons-API-Endpunkt (/persons/v1/persons) gibt
-    aktuell HTTP 404 zurück. Die korrekte URL muss via developer.library.ethz.ch
-    verifiziert werden. Das Tool ist strukturell korrekt implementiert.
+    Die Persons API liefert Listen von Personen aus spezifischen
+    Datenquellen mit Links zu den entsprechenden Personenseiten.
 
-    Liefert Personeninformationen mit Linked-Data-Anreicherung aus:
-    Wikidata, Metagrid, DNB Entityfacts, beacon.findbuch.
-
-    Nützlich für: Autor-Recherche, Nachlass-Suche, Identifikation von
-    ETH-Professorinnen und -Professoren oder bekannten Persönlichkeiten
-    in den ETH-Archiven.
+    Verfügbare Datenpools:
+    - hsa: Hochschularchiv (HSA) – ETH-Professoren, Institutionsgeschichte
+    - ba: E-Pics Bildarchiv (BA) – Personen in Bildsammlungen
+    - erara: e-rara – Personen in digitalisierten Drucken
+    - mfa: Max Frisch-Archiv (MFA) – Personen im Max-Frisch-Nachlass
+    - sar: Alle Quellen kombiniert (HSA + BA + e-rara + MFA)
 
     Args:
-        params (SearchPersonsInput): Parameter mit:
-            - query (str): Name/Stichwort (z.B. 'Einstein Albert')
-            - limit (int): Anzahl Ergebnisse
+        params (ListPersonsInput): Parameter mit:
+            - source (str): Datenpool-Code (Standard: 'sar' für alle)
 
     Returns:
-        str: Markdown-Liste gefundener Personen mit externen Verlinkungen
+        str: Markdown-Liste der Personen aus dem gewählten Datenpool
     """
+    source_label = PERSONS_SOURCES.get(params.source, params.source)
+
     try:
-        api_params: dict = {
-            "q": params.query,
-            "limit": str(params.limit),
-        }
+        data = await eth_api_request(PERSONS_BASE_URL, f"/{params.source}", {})
 
-        data = await eth_api_request(PERSONS_BASE_URL, "/persons", api_params)
-
-        # BUG-06 BEHOBEN: Robustes Parsing via dedizierter Funktion
+        # Robustes Parsing (BUG-06 Muster beibehalten)
         persons = parse_persons_response(data)
 
         if not persons:
-            return (
-                f"Keine Personen gefunden für '{params.query}'. "
-                "Tipp: Vollständigen Namen (Nachname Vorname) versuchen."
-            )
+            return f"Keine Personen im Datenpool '{source_label}' gefunden."
 
         lines = [
-            "## ETH-Bibliothek: Personen",
-            f"**Suche:** `{params.query}`  ",
-            f"**Treffer:** {len(persons)}",
+            f"## ETH-Bibliothek: Personen – {source_label}",
+            f"**Anzahl:** {len(persons)}",
             "",
         ]
 
-        for person in persons[: params.limit]:
+        for person in persons:
             if isinstance(person, dict):
                 name = person.get("name", person.get("label", "Unbekannt"))
-                birth = person.get("birthDate", person.get("birth", ""))
-                death = person.get("deathDate", person.get("death", ""))
-                wikidata = person.get("wikidata", person.get("wikidataUrl", ""))
-                gnd = person.get("gnd", person.get("gndId", ""))
+                link = person.get("url", person.get("link", ""))
 
-                life = f" ({birth}–{death})" if birth or death else ""
-                line = f"- **{name}**{life}"
-                if wikidata:
-                    line += f" | [Wikidata]({wikidata})"
-                if gnd:
-                    line += f" | GND: `{gnd}`"
+                line = f"- **{name}**"
+                if link:
+                    line += f" | [Personenseite]({link})"
                 lines.append(line)
 
         return "\n".join(lines)
 
     except Exception as e:
-        # BUG-07 BEHOBEN: is_search=True → 404 nicht als 'ID nicht gefunden' angezeigt
-        return handle_api_error(e, f"Personensuche '{params.query}'", is_search=True)
+        return handle_api_error(
+            e, f"Personenliste '{source_label}'", is_search=True
+        )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TOOL 5b: Personen-Enrichment (Wikidata/GND Lookup)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+class GetPersonInput(BaseModel):
+    """Input für den Personen-Enrichment-Lookup."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    qid: Optional[str] = Field(
+        default=None,
+        description=(
+            "Wikidata QID der Person (z.B. 'Q937' für Albert Einstein). "
+            "Entweder qid oder gnd muss angegeben werden."
+        ),
+        min_length=2,
+        max_length=20,
+    )
+    gnd: Optional[str] = Field(
+        default=None,
+        description=(
+            "GND-ID der Person (z.B. '118529579' für Albert Einstein). "
+            "Entweder qid oder gnd muss angegeben werden."
+        ),
+        min_length=2,
+        max_length=30,
+    )
+
+
+@mcp.tool(
+    name="eth_get_person",
+    annotations={
+        "title": "ETH-Bibliothek Personen-Enrichment abrufen",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+)
+async def eth_get_person(params: GetPersonInput) -> str:
+    """
+    Ruft angereicherte Informationen zu einer Person ab.
+
+    Nutzt die Persons Enrichment API mit Daten aus:
+    Wikidata, Metagrid, DNB Entityfacts, beacon.findbuch.
+
+    Die Person wird über ihre Wikidata QID oder GND-ID identifiziert.
+    Mindestens einer der beiden Parameter muss angegeben werden.
+
+    Nützlich für: Autor-Recherche, Nachlass-Suche, biografische Details,
+    Identifikation von ETH-Professorinnen und -Professoren.
+
+    Beispiele:
+    - Albert Einstein: qid='Q937' oder gnd='118529579'
+    - Max Frisch: qid='Q115835' oder gnd='118536109'
+
+    Args:
+        params (GetPersonInput): Parameter mit:
+            - qid (str, optional): Wikidata QID (z.B. 'Q937')
+            - gnd (str, optional): GND-ID (z.B. '118529579')
+
+    Returns:
+        str: Markdown-Dokument mit biografischen Daten und externen Links
+    """
+    if not params.qid and not params.gnd:
+        return (
+            "Fehler: Mindestens eine Kennung erforderlich – "
+            "entweder `qid` (Wikidata QID, z.B. 'Q937') oder "
+            "`gnd` (GND-ID, z.B. '118529579')."
+        )
+
+    identifier = params.qid or params.gnd
+    id_type = "QID" if params.qid else "GND"
+
+    try:
+        api_params: dict = {}
+        if params.qid:
+            api_params["qid"] = params.qid
+        if params.gnd:
+            api_params["gnd"] = params.gnd
+
+        data = await eth_api_request(PERSONS_BASE_URL, "/enrichment", api_params)
+
+        if not data:
+            return (
+                f"Keine Enrichment-Daten gefunden für {id_type} '{identifier}'. "
+                "Tipp: QID/GND-ID auf Wikidata bzw. DNB prüfen."
+            )
+
+        return format_person_enrichment(data)
+
+    except Exception as e:
+        return handle_api_error(
+            e, f"Personen-Enrichment {id_type} '{identifier}'", is_search=False
+        )
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -769,10 +860,13 @@ async def eth_library_info() -> str:
     archive_list = "\n".join(
         f"  - `{key}`: {label}" for key, label in ARCHIVE_SOURCES.items()
     )
+    persons_list = "\n".join(
+        f"  - `{key}`: {label}" for key, label in PERSONS_SOURCES.items()
+    )
 
     return f"""# ETH Library MCP Server
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **API-Key Status:** {key_status}
 **Basis-URL:** https://api.library.ethz.ch
 
@@ -784,7 +878,8 @@ async def eth_library_info() -> str:
 | `eth_get_resource` | Einzelne Ressource via MMS-ID abrufen |
 | `eth_search_archive` | Spezifisches Archiv durchsuchen |
 | `eth_search_by_type` | Nach Ressourcentyp filtern |
-| `eth_search_persons` | Personensuche mit Linked Data ⚠ URL-Verifikation ausstehend |
+| `eth_list_persons` | Personenliste aus Datenpool (HSA, Bildarchiv, e-rara, MFA) |
+| `eth_get_person` | Personen-Enrichment via Wikidata QID oder GND-ID |
 | `eth_search_education` | Kuratierte Bildungsthemen-Suche |
 | `eth_library_info` | Diese Übersicht |
 
@@ -795,6 +890,10 @@ async def eth_library_info() -> str:
 ## Verfügbare Archive (archive)
 
 {archive_list}
+
+## Personen-Datenpools (source)
+
+{persons_list}
 
 ## Query-Syntax
 
@@ -834,6 +933,12 @@ async def get_archives() -> str:
     return json.dumps(ARCHIVE_SOURCES, ensure_ascii=False, indent=2)
 
 
+@mcp.resource("eth://persons-sources")
+async def get_persons_sources() -> str:
+    """Liste aller verfügbaren Personen-Datenpools der ETH-Bibliothek."""
+    return json.dumps(PERSONS_SOURCES, ensure_ascii=False, indent=2)
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # MCP PROMPTS – Vordefinierte Workflows
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -847,8 +952,10 @@ async def research_workflow(topic: str) -> str:
 1. Starte mit eth_library_info für einen Überblick
 2. Suche mit eth_search_resources (query: 'any,contains,{topic}', limit: 20)
 3. Suche auch in den relevanten Archiven mit eth_search_archive
-4. Rufe die vielversprechendsten Ressourcen via eth_get_resource für Details ab
-5. Erstelle eine strukturierte Zusammenfassung der gefundenen Ressourcen
+4. Prüfe Personenlisten mit eth_list_persons (source: 'sar')
+5. Rufe die vielversprechendsten Ressourcen via eth_get_resource für Details ab
+6. Bei bekannten Personen: eth_get_person mit QID oder GND-ID für Enrichment
+7. Erstelle eine strukturierte Zusammenfassung der gefundenen Ressourcen
 
 Ziel: Vollständiger Literatur- und Quellenüberblick zum Thema."""
 

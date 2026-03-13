@@ -4,6 +4,12 @@ ETH Library API Client
 Gemeinsamer HTTP-Client und Hilfsfunktionen für alle ETH-Bibliothek APIs.
 Basiert auf dem gleichen Muster wie der Zurich Open Data MCP Server.
 
+Changelog v0.3.0:
+  - BUG-02 BEHOBEN: Persons-API korrekt implementiert (/{code} + /enrichment)
+  - NEU: PersonsSourceCode Typ-Alias für Datenpools (hsa, ba, erara, mfa, sar)
+  - NEU: PERSONS_SOURCES Dict mit Datenpool-Beschreibungen
+  - NEU: format_person_enrichment() für Persons-Enrichment-Darstellung
+
 Changelog v0.2.0:
   - BUG-05: Ungenutzte Konstanten RESEARCH_BASE_URL, ETHORAMA_BASE_URL entfernt
   - BUG-06: Persons-Response-Parsing robust gegen weitere Schlüssel ('data', 'items', 'hits')
@@ -25,11 +31,10 @@ logger = logging.getLogger(__name__)
 
 DISCOVERY_BASE_URL = "https://api.library.ethz.ch/discovery/v1"
 PERSONS_BASE_URL = "https://api.library.ethz.ch/persons/v1"
-# Hinweis: PERSONS_BASE_URL ist als potenziell defekt markiert (BUG-02).
-# Korrekten Endpunkt via https://developer.library.ethz.ch verifizieren.
-# Aktueller Endpunkt: /persons/v1/persons – gibt HTTP 404 zurück.
-# Mögliche korrekte Alternativen: /persons/v2/search, /persons/v1/search
-# Nach Verifikation: PERSONS_BASE_URL und den Pfad in eth_search_persons anpassen.
+# BUG-02 BEHOBEN (v0.3.0): Korrekte Endpunkte laut OpenAPI-Spec:
+#   GET /{code}       → Personenliste aus Datenpool (hsa, ba, erara, mfa, sar)
+#   GET /enrichment   → Personen-Enrichment via Wikidata QID oder GND-ID
+# Quelle: https://raw.githubusercontent.com/eth-library/opendata-apis/main/persons-v1.yaml
 
 REQUEST_TIMEOUT = 30.0
 
@@ -58,6 +63,8 @@ ArchiveKey = Literal[
     "ETH_Bildarchiv",
 ]
 
+PersonsSourceCode = Literal["hsa", "ba", "erara", "mfa", "sar"]
+
 # ─── Bekannte Ressourcentypen (facet_rtype) ───────────────────────────────────
 
 RESOURCE_TYPES: dict[str, str] = {
@@ -81,6 +88,16 @@ ARCHIVE_SOURCES: dict[str, str] = {
     "ETH_ThomasMannArchiv": "Thomas-Mann-Archiv",
     "ETH_GraphischeSammlung": "Graphische Sammlung",
     "ETH_Bildarchiv": "Bildarchiv (E-Pics)",
+}
+
+# ─── Personen-Datenpools (Persons API v1) ────────────────────────────────────
+
+PERSONS_SOURCES: dict[str, str] = {
+    "hsa": "Hochschularchiv (HSA)",
+    "ba": "E-Pics Bildarchiv (BA)",
+    "erara": "e-rara",
+    "mfa": "Max Frisch-Archiv (MFA)",
+    "sar": "Alle Quellen (HSA + BA + e-rara + MFA)",
 }
 
 # ─── Sortiermöglichkeiten ─────────────────────────────────────────────────────
@@ -225,6 +242,69 @@ def parse_persons_response(data: Any) -> list[dict[str, Any]]:
         )
 
     return []
+
+
+def format_person_enrichment(data: dict[str, Any]) -> str:
+    """
+    Formatiert Persons-Enrichment-Daten als Markdown-Dokument.
+
+    Die Enrichment-API liefert angereicherte Informationen aus:
+    Wikidata, Metagrid, DNB Entityfacts, beacon.findbuch.
+    """
+    lines: list[str] = []
+
+    # Name aus verschiedenen möglichen Feldern extrahieren
+    name = (
+        data.get("name")
+        or data.get("label")
+        or data.get("preferredName")
+        or "Unbekannt"
+    )
+    lines.append(f"# {name}")
+    lines.append("")
+
+    # Lebensdaten
+    birth = data.get("birthDate", data.get("dateOfBirth", ""))
+    death = data.get("deathDate", data.get("dateOfDeath", ""))
+    if birth or death:
+        lines.append(f"**Lebensdaten:** {birth}–{death}")
+
+    # Beschreibung / Biografie
+    desc = data.get("description", data.get("biographicalOrHistoricalInformation", ""))
+    if desc:
+        lines.append(f"**Beschreibung:** {desc[:500]}")
+
+    # Berufe / Tätigkeiten
+    professions = data.get("professionOrOccupation", [])
+    if professions:
+        if isinstance(professions, list):
+            lines.append(f"**Beruf:** {', '.join(str(p) for p in professions[:5])}")
+        else:
+            lines.append(f"**Beruf:** {professions}")
+
+    # Externe Links
+    links_section: list[str] = []
+    wikidata = data.get("wikidata", data.get("wikidataId", data.get("qid", "")))
+    if wikidata:
+        qid = wikidata if wikidata.startswith("Q") else wikidata
+        links_section.append(f"- [Wikidata](https://www.wikidata.org/wiki/{qid})")
+
+    gnd = data.get("gnd", data.get("gndId", data.get("gndIdentifier", "")))
+    if gnd:
+        links_section.append(
+            f"- [GND / DNB](https://d-nb.info/gnd/{gnd}) (ID: `{gnd}`)"
+        )
+
+    metagrid = data.get("metagrid", data.get("metagridUrl", ""))
+    if metagrid:
+        links_section.append(f"- [Metagrid]({metagrid})")
+
+    if links_section:
+        lines.append("")
+        lines.append("**Externe Links:**")
+        lines.extend(links_section)
+
+    return "\n".join(filter(None, lines))
 
 
 def handle_api_error(
