@@ -270,7 +270,7 @@ See [CHANGELOG.md](CHANGELOG.md)
 
 ## Author
 
-malkreide · [github.com/malkreide](https://github.com/malkreide)
+Hayal Oezkan · [github.com/malkreide](https://github.com/malkreide)
 
 ---
 
