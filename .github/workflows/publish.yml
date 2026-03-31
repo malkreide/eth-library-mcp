@@ -1,0 +1,54 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  id-token: write  # Pflicht für Trusted Publisher
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Python einrichten
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build-Tools installieren
+        run: pip install build
+
+      - name: Paket bauen
+        run: python -m build
+
+      - name: Build-Artefakte hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/eth-library-mcp/
+
+    steps:
+      - name: Build-Artefakte herunterladen
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Auf PyPI publizieren
+        uses: pypa/gh-action-pypi-publish@release/v1
