@@ -1,34 +1,62 @@
 [build-system]
-requires = ["hatchling"]
+requires      = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "eth-library-mcp"
-version = "0.2.0"
-description = "MCP Server für die ETH-Bibliothek Zürich – Zugriff auf 30+ Millionen Ressourcen via Discovery, Persons und Research Collection API"
-readme = "README.md"
+name        = "eth-library-mcp"
+version     = "0.2.0"
+description = "MCP Server for ETH Library Zurich — Access 30M+ resources (books, maps, images, archives) via Discovery & Persons API"
+readme      = "README.md"
+license     = { file = "LICENSE" }
 requires-python = ">=3.11"
-license = { text = "MIT" }
-authors = [{ name = "Schulamt der Stadt Zürich" }]
-keywords = ["mcp", "eth", "library", "discovery", "research", "open-data"]
+
+keywords = [
+    "mcp", "model-context-protocol", "swiss-open-data",
+    "eth-library", "discovery", "research", "archives",
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
 dependencies = [
     "mcp[cli]>=1.0.0",
     "httpx>=0.27.0",
     "pydantic>=2.0.0",
 ]
 
-[project.scripts]
-eth-library-mcp = "eth_library_mcp.server:main"
-
-# BUG-01 BEHOBEN: src/-Präfix entfernt – kein src/-Verzeichnis vorhanden
-[tool.hatch.build.targets.wheel]
-packages = ["eth_library_mcp"]
-
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
-    "ruff>=0.3.0",
+    "pytest-cov>=5.0.0",
+    "respx>=0.21.0",
+    "ruff>=0.4.0",
+]
+
+[project.scripts]
+eth-library-mcp = "eth_library_mcp.server:mcp.run"
+
+[project.urls]
+Homepage   = "https://github.com/malkreide/eth-library-mcp"
+Repository = "https://github.com/malkreide/eth-library-mcp"
+Issues     = "https://github.com/malkreide/eth-library-mcp/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eth_library_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths    = ["tests"]
+addopts      = "-v --tb=short"
+markers      = [
+    "live: live API tests (skipped in CI by default)",
 ]
 
 [tool.ruff]
@@ -36,4 +64,5 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501"]

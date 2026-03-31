@@ -214,14 +214,17 @@ title,contains,Schule;sub,contains,Geschichte
 
 ```
 eth-library-mcp/
-├── eth_library_mcp/           # Main package
-│   └── server.py              # FastMCP server, tool definitions
+├── src/
+│   └── eth_library_mcp/
+│       ├── __init__.py        # Package init, version
+│       └── server.py          # FastMCP server, all tools
+├── tests/
+│   └── test_server.py         # Unit tests
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── LICENSE
 ├── README.md                  # This file (English)
 ├── README.de.md               # German version
-├── TEST_PLAN.md
 ├── claude_desktop_config.json # Example Claude Desktop configuration
 └── pyproject.toml             # Build configuration
 ```

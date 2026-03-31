@@ -98,7 +98,7 @@ docs: add query syntax examples to README
 
 ## Adding a New Tool
 
-New tools go in `eth_library_mcp/server.py`. Follow the existing pattern:
+New tools go in `src/eth_library_mcp/server.py`. Follow the existing pattern:
 
 ```python
 @mcp.tool()

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "eth-library": {
+      "command": "python",
+      "args": ["-m", "eth_library_mcp.server"],
+      "env": {
+        "ETH_LIBRARY_API_KEY": "your_key_here"
+      }
+    }
+  }
+}
