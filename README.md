@@ -11,7 +11,11 @@
 
 > MCP server giving AI models direct access to 30M+ resources at ETH Library Zurich – books, maps, images, archival material, and linked-data person records.
 
-[🇩🇪 Deutsche Version](README.de.md)
+🌐 **English** | **[Deutsch](README.de.md)**
+
+### Demo
+
+![Demo: Claude using eth_search_archive to find historical school documents](docs/assets/demo.svg)
 
 ---
 
@@ -231,23 +235,28 @@ eth-library-mcp/
 
 ---
 
-## Known Limitations
-
-- **BUG-02 (Persons API):** `eth_search_persons` returns HTTP 404 – correct endpoint URL to be verified at [developer.library.ethz.ch](https://developer.library.ethz.ch)
-- **Bibliographic metadata:** Licensed as Public Domain – free for all uses, no restrictions
-- **Rate limits:** Governed by the ETH Library API terms; no built-in throttling in this server version
-
----
-
 ## Testing
 
 ```bash
 # Unit tests (no API key required)
-PYTHONPATH=. pytest tests/ -m "not live"
+PYTHONPATH=src pytest tests/ -m "not live"
 
 # Integration tests (API key required)
 ETH_LIBRARY_API_KEY=xxx pytest tests/ -m "live"
 ```
+
+---
+
+## Safety & Limits
+
+- **Read-only:** All tools perform HTTP GET requests only — no data is written, modified, or deleted.
+- **No personal data:** The APIs return bibliographic metadata (titles, authors, subjects, identifiers). No personally identifiable information (PII) is processed or stored by this server.
+- **Authentication:** A free API key from [developer.library.ethz.ch](https://developer.library.ethz.ch) is required. The key is read from the `ETH_LIBRARY_API_KEY` environment variable and never logged or transmitted to third parties.
+- **Rate limits:** The ETH Library API enforces rate limits per API key. The server enforces a 30-second timeout per request. Use `limit` and `offset` parameters conservatively.
+- **Data freshness:** Results reflect the ETH Library catalogue at query time. No caching is performed by this server.
+- **Terms of service:** Bibliographic metadata is published as **Public Domain** — free for all uses. API access is subject to the [ETH Library Developer Portal](https://developer.library.ethz.ch) terms.
+- **Known issue (BUG-02):** `eth_search_persons` returns HTTP 404 — the Persons API endpoint URL needs verification. All other 6 tools work correctly.
+- **No guarantees:** This is a community project, not affiliated with the ETH Library or ETH Zurich. Availability depends on upstream APIs.
 
 ---
 
@@ -271,16 +280,4 @@ See [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
-## Author
-
-Hayal Oezkan · [github.com/malkreide](https://github.com/malkreide)
-
----
-
-## Credits & Related Projects
-
-- **Data:** [ETH Library Zurich](https://library.ethz.ch) – Discovery & Persons APIs
-- **Protocol:** [Model Context Protocol](https://modelcontextprotocol.io/) – Anthropic / Linux Foundation
-- **Related:** [swiss-transport-mcp](https://github.com/malkreide/swiss-transport-mcp) – MCP server for Swiss public transport
-- **Related:** [zurich-opendata-mcp](https://github.com/malkreide/zurich-opendata-mcp) – MCP server for Zurich city open data
-- **Portfolio:** [Swiss Public Data MCP Portfolio](https://github.com/malkreide)
+*Powered by [Model Context Protocol](https://modelcontextprotocol.io/) • 2 APIs • 7 Tools • 2 Resources • 2 Prompts*

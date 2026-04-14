@@ -1,5 +1,3 @@
-[🇬🇧 English Version](README.md)
-
 > 🇨🇭 **Teil des [Swiss Public Data MCP Portfolios](https://github.com/malkreide)**
 
 # 🏛️ eth-library-mcp
@@ -11,7 +9,13 @@
 [![Datenquelle](https://img.shields.io/badge/Daten-ETH%20Bibliothek%20Z%C3%BCrich-red)](https://developer.library.ethz.ch)
 [![CI](https://github.com/malkreide/eth-library-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/malkreide/eth-library-mcp/actions/workflows/ci.yml)
 
+🌐 **[English](README.md)** | **Deutsch**
+
 > MCP-Server, der KI-Modellen direkten Zugriff auf 30+ Millionen Ressourcen der ETH-Bibliothek Zürich gibt – Bücher, Karten, Bilder, Archivmaterial und Linked-Data-Personeneinträge.
+
+### Demo
+
+![Demo: Claude nutzt eth_search_archive für historische Schuldokumente](docs/assets/demo.svg)
 
 ---
 
@@ -231,23 +235,28 @@ eth-library-mcp/
 
 ---
 
-## Bekannte Einschränkungen
-
-- **BUG-02 (Persons API):** `eth_search_persons` gibt HTTP 404 zurück – korrekte Endpunkt-URL muss via [developer.library.ethz.ch](https://developer.library.ethz.ch) verifiziert werden
-- **Bibliografische Metadaten:** Public Domain – frei nutzbar, keine Einschränkungen
-- **Rate Limits:** Gemäss den API-Nutzungsbedingungen der ETH-Bibliothek; kein eingebautes Throttling in dieser Version
-
----
-
 ## Tests
 
 ```bash
 # Unit-Tests (kein API-Key erforderlich)
-PYTHONPATH=. pytest tests/ -m "not live"
+PYTHONPATH=src pytest tests/ -m "not live"
 
 # Integrationstests (API-Key erforderlich)
 ETH_LIBRARY_API_KEY=xxx pytest tests/ -m "live"
 ```
+
+---
+
+## Sicherheit & Grenzen
+
+- **Nur-Lesen:** Alle Tools verwenden ausschliesslich HTTP-GET-Anfragen — es werden keine Daten geschrieben, verändert oder gelöscht.
+- **Keine Personendaten:** Die APIs liefern bibliografische Metadaten (Titel, Autoren, Schlagworte, Identifikatoren). Keine personenbezogenen Daten werden durch diesen Server verarbeitet oder gespeichert.
+- **Authentifizierung:** Ein kostenloser API-Key von [developer.library.ethz.ch](https://developer.library.ethz.ch) ist erforderlich. Der Key wird aus der Umgebungsvariable `ETH_LIBRARY_API_KEY` gelesen und weder geloggt noch an Dritte übermittelt.
+- **Rate Limits:** Die ETH-Bibliothek-API erzwingt Rate Limits pro API-Key. Der Server erzwingt ein 30-Sekunden-Timeout pro Anfrage. `limit`- und `offset`-Parameter konservativ einsetzen.
+- **Datenaktualität:** Ergebnisse spiegeln den ETH-Bibliothekskatalog zum Abfragezeitpunkt wider. Dieser Server nimmt kein Caching vor.
+- **Nutzungsbedingungen:** Bibliografische Metadaten sind als **Public Domain** publiziert — frei nutzbar ohne Einschränkungen. Der API-Zugang unterliegt den Bedingungen des [ETH Library Developer Portals](https://developer.library.ethz.ch).
+- **Bekanntes Problem (BUG-02):** `eth_search_persons` gibt HTTP 404 zurück — die Persons-API-Endpunkt-URL muss verifiziert werden. Alle anderen 6 Tools funktionieren einwandfrei.
+- **Keine Gewähr:** Dieses Projekt ist eine Community-Initiative ohne Verbindung zur ETH-Bibliothek oder ETH Zürich. Verfügbarkeit hängt von den vorgelagerten APIs ab.
 
 ---
 
@@ -271,16 +280,4 @@ Siehe [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
-## Autor
-
-Hayal Oezkan · [github.com/malkreide](https://github.com/malkreide)
-
----
-
-## Credits & Verwandte Projekte
-
-- **Daten:** [ETH-Bibliothek Zürich](https://library.ethz.ch) – Discovery & Persons APIs
-- **Protokoll:** [Model Context Protocol](https://modelcontextprotocol.io/) – Anthropic / Linux Foundation
-- **Verwandt:** [swiss-transport-mcp](https://github.com/malkreide/swiss-transport-mcp) – MCP-Server für den Schweizer ÖV
-- **Verwandt:** [zurich-opendata-mcp](https://github.com/malkreide/zurich-opendata-mcp) – MCP-Server für Zürcher Stadtdaten
-- **Portfolio:** [Swiss Public Data MCP Portfolio](https://github.com/malkreide)
+*Powered by [Model Context Protocol](https://modelcontextprotocol.io/) • 2 APIs • 7 Tools • 2 Resources • 2 Prompts*
