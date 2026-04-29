@@ -86,6 +86,8 @@ Try it immediately in Claude Desktop:
 > *"Find books about Swiss education history in the ETH Library."*
 > *"Search the Max Frisch archive for manuscripts about Zurich."*
 
+[→ More use cases by audience →](EXAMPLES.md)
+
 ---
 
 ## Configuration

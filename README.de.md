@@ -86,6 +86,8 @@ Sofort in Claude Desktop ausprobieren:
 > *«Finde Bücher zur Geschichte der Schweizer Bildung in der ETH-Bibliothek.»*
 > *«Suche im Max-Frisch-Archiv nach Manuskripten über Zürich.»*
 
+[→ Weitere Anwendungsbeispiele nach Zielgruppe →](EXAMPLES.md)
+
 ---
 
 ## Konfiguration
