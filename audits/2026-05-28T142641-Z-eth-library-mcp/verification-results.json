@@ -1,0 +1,500 @@
+{
+  "audit_meta": {
+    "server_name": "eth-library-mcp",
+    "run_id": "2026-05-28T142641-Z-eth-library-mcp",
+    "skill_version": "0.5.0",
+    "auditor": "Claude (mcp-audit-skill)",
+    "policy": "fail-or-partial"
+  },
+  "results": {
+    "ARCH-001": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "All 7 tool names use snake_case with consistent prefix: eth_search_resources, eth_get_resource, eth_search_archive, eth_search_by_type, eth_search_persons, eth_search_education, eth_library_info (src/eth_library_mcp/server.py:365,485,560,669,770,878,963)",
+        "Names are verb+noun and unambiguous",
+        "No collisions with other servers' tools likely (eth_ prefix)"
+      ],
+      "gaps": []
+    },
+    "ARCH-002": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Every tool defines a 'title' annotation (e.g. 'ETH-Bibliothek Ressourcen suchen', server.py:367)",
+        "Tool docstrings document Args/Returns and use cases (e.g. server.py:375-394, 495-509)",
+        "Server-level instructions string explains domain context (server.py:292-302)"
+      ],
+      "gaps": [
+        "No explicit use-case tags (e.g. 'tags: research/education/discovery') per check spec — descriptions are prose-only"
+      ]
+    },
+    "ARCH-003": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Empty-result branches return helpful hints (server.py:424-427 'Tipp: Breitere Suche mit any,contains,Begriff versuchen')",
+        "_handle_error converts 404 into context-specific guidance (server.py:268-277)",
+        "Persons-search empty case suggests fuller name format (server.py:809-811)"
+      ],
+      "gaps": []
+    },
+    "ARCH-004": {
+      "category": "ARCH",
+      "severity": "high",
+      "status": "partial",
+      "evidence": [
+        "Tools are decorated at module level; FastMCP separates transport from tool logic (FastMCP framework choice satisfies IoC partially)",
+        "Transport choice handled via CLI flag --http in __main__ (server.py:1100-1107)"
+      ],
+      "gaps": [
+        "All tool functions live in a single 1107-line server.py — no separation of tool-layer / api-client / formatting layers",
+        "HTTP client (_http_get) is module-private and not injectable for testing — couples transport-agnostic logic to httpx instantiation"
+      ]
+    },
+    "ARCH-005": {
+      "category": "ARCH",
+      "severity": "critical",
+      "status": "partial",
+      "evidence": [
+        "No hardcoded API keys, passwords, or tokens in src/ (grep for secret patterns returns 0 hits)",
+        "API key loaded from environment via os.environ.get('ETH_LIBRARY_API_KEY') (server.py:101, server.py:982)",
+        "No default fallback secret in os.environ.get(..., default=...) calls",
+        "No api_key value is logged anywhere"
+      ],
+      "gaps": [
+        "CRITICAL: .gitignore is MISSING from the repository — a developer who creates .env locally risks committing it",
+        "No .env.example file with placeholders",
+        "No CI secret-scanning workflow (gitleaks/trufflehog) — CI runs only ruff + pytest",
+        "No Pydantic-Settings / SecretStr wrapper around the api key — it lives as a plain str in memory",
+        "No pre-commit hook configuration"
+      ]
+    },
+    "ARCH-006": {
+      "category": "ARCH",
+      "severity": "high",
+      "status": "partial",
+      "evidence": [
+        "7 tools total — under the typical budget of 10–15",
+        "Tools organized around use cases (search_education for school context, library_info as entry point)"
+      ],
+      "gaps": [
+        "eth_search_resources, eth_search_archive, eth_search_by_type and eth_search_education all wrap the same Discovery API endpoint with different facet filters — they could be a single tool with optional facet parameters",
+        "eth_search_education is essentially eth_search_resources with sort=rank and a fixed query template — boundary between them is fuzzy"
+      ]
+    },
+    "ARCH-007": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Internal helpers _http_get, _format_resource_summary, _format_resource_detail, _parse_persons_response are composable and reused across tools",
+        "Tools themselves remain atomic — each does one Discovery/Persons API call"
+      ],
+      "gaps": []
+    },
+    "ARCH-008": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Uses all three MCP primitives: 7 @mcp.tool functions",
+        "2 @mcp.resource endpoints: eth://resource-types, eth://archives (server.py:1048,1054)",
+        "2 @mcp.prompt workflows: research-workflow, education-research (server.py:1065,1079)"
+      ],
+      "gaps": []
+    },
+    "ARCH-009": {
+      "category": "ARCH",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "All 6 search/get tools declare readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True (server.py:366-372 and 5 more)",
+        "eth_library_info correctly sets openWorldHint=False (no external call) (server.py:969)",
+        "Annotation choices match actual behavior — server is read-only against external APIs"
+      ],
+      "gaps": []
+    },
+    "ARCH-011": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "src-layout: src/eth_library_mcp/{__init__.py,server.py}",
+        "tests/ directory with test_server.py present",
+        "Bilingual README: README.md (English) + README.de.md (German)",
+        "CHANGELOG.md, CONTRIBUTING.md, LICENSE, EXAMPLES.md all present",
+        "pyproject.toml with hatchling build backend"
+      ],
+      "gaps": [
+        "1107-line monolithic server.py — exceeds typical maintainability threshold; no submodule split (e.g. client.py, formatting.py, tools.py)"
+      ]
+    },
+    "ARCH-012": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "partial",
+      "evidence": [
+        "CHANGELOG.md exists in Keep-a-Changelog format with versioned entries (0.1.0, 0.2.0)",
+        "Version bumps documented",
+        "MCP SDK dependency declared: mcp[cli]>=1.0.0"
+      ],
+      "gaps": [
+        "MCP SDK pinned only with lower bound (>=1.0.0) — no upper bound or explicit protocolVersion pin against the 2025-06-18 spec",
+        "No documentation in README/CHANGELOG of which MCP protocol version this server targets",
+        "httpx/pydantic dependencies use lower-bound only, exposing CI to silent breakage on major bumps"
+      ]
+    },
+    "CH-004": {
+      "category": "CH",
+      "severity": "medium",
+      "status": "partial",
+      "evidence": [
+        "README documents the data source ('ETH Library Zurich, Discovery + Persons APIs', README.md:259)",
+        "README documents license: bibliographic metadata as Public Domain (README.md:280)",
+        "Safety & Limits section names data source and ToS link (README.md:259)"
+      ],
+      "gaps": [
+        "Tool responses do NOT include a per-result 'source' field with provenance (e.g. 'Source: ETH Library, Public Domain')",
+        "Aggregated formatting (_format_resource_summary, _format_resource_detail) drops the canonical source attribution from the API response",
+        "No docs/data-sources.md inventory listing the four linked-data sources (Wikidata, Metagrid, DNB, beacon.findbuch) cited in code"
+      ]
+    },
+    "OBS-001": {
+      "category": "OBS",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "_handle_error returns user-friendly strings as tool results rather than raising — execution errors stay inside MCP tool-result envelope (server.py:243-285)",
+        "FastMCP framework handles protocol-level errors separately",
+        "HTTPStatusError, TimeoutException, ConnectError all mapped to distinct user messages"
+      ],
+      "gaps": []
+    },
+    "OBS-002": {
+      "category": "OBS",
+      "severity": "high",
+      "status": "fail",
+      "evidence": [
+        "FastMCP server constructed without mask_error_details (server.py:290-303)"
+      ],
+      "gaps": [
+        "FAIL: _handle_error leaks upstream response body to the LLM: 'HTTP-Fehler {status}: {e.response.text[:200]}' (server.py:280) — bug pages / proxy errors / stack traces could surface",
+        "FAIL: Generic Exception branch returns 'type(e).__name__: {e}' (server.py:285), exposing internal exception class names and Python error strings to the LLM",
+        "No mask_error_details=True on FastMCP init"
+      ]
+    },
+    "OBS-003": {
+      "category": "OBS",
+      "severity": "medium",
+      "status": "fail",
+      "evidence": [
+        "logging.getLogger(__name__) used (server.py:30) — stdlib logging, not structlog/loguru",
+        "Only one logger.warning() call in the entire server (server.py:233)"
+      ],
+      "gaps": [
+        "No structured logger (structlog/loguru) in dependencies",
+        "No JSON/logfmt output configuration",
+        "Only WARNING severity is actually used — DEBUG/INFO/ERROR are absent",
+        "No log fields for request_id, tool_name, user_session — impossible to correlate across an MCP session"
+      ]
+    },
+    "OBS-004": {
+      "category": "OBS",
+      "severity": "critical",
+      "status": "partial",
+      "evidence": [
+        "FastMCP framework handles stdio protocol routing — by default it sends logs to stderr, not stdout",
+        "Only one explicit log statement in code (logger.warning) — low risk of stdout pollution",
+        "No print() statements found in src/eth_library_mcp/"
+      ],
+      "gaps": [
+        "No explicit logging.basicConfig(stream=sys.stderr) call — relies on FastMCP defaults and Python's root-logger default (which is stderr)",
+        "If a downstream consumer adds a handler to logger without specifying stream, accidental stdout writes could corrupt the JSON-RPC protocol",
+        "Not documented in README that stdio transport requires stderr-only logging"
+      ]
+    },
+    "OPS-001": {
+      "category": "OPS",
+      "severity": "high",
+      "status": "partial",
+      "evidence": [
+        "tests/test_server.py contains 25 test functions",
+        "pytest markers include 'live' for live-API tests (pyproject.toml)",
+        "CI runs 'pytest -m \"not live\"' so live tests are gated (workflows/ci.yml)",
+        "Matrix tested on Python 3.11/3.12/3.13"
+      ],
+      "gaps": [
+        "respx is declared in [dev] dependencies BUT not actually used anywhere in tests/ — no HTTP mocking of httpx calls",
+        "Tests cover only pure-Python helpers (_first, _format_resource_summary, _parse_persons_response, _handle_error, input validation) — none of the 7 actual @mcp.tool functions are exercised",
+        "No tests with @pytest.mark.live markers found in test_server.py — the marker is declared but never used",
+        "Coverage of the tool layer is effectively 0%"
+      ]
+    },
+    "OPS-002": {
+      "category": "OPS",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Bilingual README: README.md + README.de.md",
+        "Safety & Limits section present with rate limits, timeout, ToS (README.md:252-263)",
+        "Project Structure section with ASCII tree (README.md:221-238)",
+        "Known issue (BUG-02) documented in README and CHANGELOG with remediation pointer",
+        "EXAMPLES.md with audience-segmented use cases"
+      ],
+      "gaps": []
+    },
+    "OPS-003": {
+      "category": "OPS",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "All tools are read-only (HTTP GET against external APIs) — Phase 1 of the read-only-first architecture",
+        "README explicitly states 'Read-only: All tools perform HTTP GET requests only' (README.md:254)",
+        "No write/sampling/multi-agent capabilities present — Phase 2/3 not entered prematurely",
+        "Tool annotations declare readOnlyHint=True consistently"
+      ],
+      "gaps": []
+    },
+    "SCALE-002": {
+      "category": "SCALE",
+      "severity": "high",
+      "status": "fail",
+      "evidence": [
+        "Server supports streamable-http transport (server.py:1105) — SCALE-002 applies"
+      ],
+      "gaps": [
+        "FAIL: No sticky-session config, no session-store backend (Redis/Durable Objects), no reference to Mcp-Session-Id handling",
+        "If deployed behind a multi-replica load balancer, session affinity will break silently",
+        "README cloud-deployment section does not warn that LB must pin on Mcp-Session-Id"
+      ]
+    },
+    "SDK-001": {
+      "category": "SDK",
+      "severity": "high",
+      "status": "fail",
+      "evidence": [
+        "FastMCP instance created at module level without lifespan parameter (server.py:290-303)"
+      ],
+      "gaps": [
+        "FAIL: No @asynccontextmanager lifespan defined — httpx.AsyncClient is constructed and torn down on EVERY tool call (server.py:121)",
+        "Per-call client construction defeats httpx connection pooling and forces a fresh TCP+TLS handshake per request → measurable latency penalty, especially on slow networks",
+        "No AsyncExitStack pattern — if future external clients are added, there's no cleanup path"
+      ]
+    },
+    "SDK-002": {
+      "category": "SDK",
+      "severity": "medium",
+      "status": "partial",
+      "evidence": [
+        "All 6 input models inherit from pydantic BaseModel with model_config = ConfigDict(str_strip_whitespace=True, extra='forbid') (server.py:314,463,535,642,755,851)",
+        "Literal types used for sort/resource_type/archive parameters (server.py:43-64)"
+      ],
+      "gaps": [
+        "Tool RETURN type is plain str (Markdown) for all 7 tools — no structured dataclass or TypedDict on the output side",
+        "Downstream LLMs cannot parse structured fields out of formatted Markdown without re-parsing — defeats the FastMCP structured-output capability"
+      ]
+    },
+    "SDK-003": {
+      "category": "SDK",
+      "severity": "medium",
+      "status": "fail",
+      "evidence": [
+        "No mcp.server.fastmcp.Context type imported, no Context parameter in any tool signature"
+      ],
+      "gaps": [
+        "FAIL: No Context injection — long-running searches (e.g. limit=100) have no progress reports",
+        "FAIL: Errors are silently masked into return-strings rather than emitted via ctx.warning() / ctx.error() — observability blind spot",
+        "Persons-API unknown-structure warning uses stdlib logger only, not Context"
+      ]
+    },
+    "SDK-004": {
+      "category": "SDK",
+      "severity": "high",
+      "status": "fail",
+      "evidence": [
+        "Server supports HTTP transport (server.py:1105) — SDK-004 applies"
+      ],
+      "gaps": [
+        "FAIL: No CORS middleware is installed or configured",
+        "FAIL: Mcp-Session-Id is neither in expose_headers nor allow_headers — browser-based MCP clients cannot read the session id from the response",
+        "Cloud-deployment section in README does not document the CORS requirement"
+      ]
+    },
+    "SEC-002": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "n/a",
+      "evidence": [
+        "Auth model is API-Key with the upstream ETH Library API — not OAuth — and no token is received from MCP clients",
+        "The ETH_LIBRARY_API_KEY is a static credential owned by the server operator, not passed-through from the LLM/user",
+        "No JWT-validation code path exists in the server"
+      ],
+      "gaps": []
+    },
+    "SEC-003": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "partial",
+      "evidence": [
+        "Server uses a single ETH_LIBRARY_API_KEY for all upstream calls — operator-controlled credential, not user-delegated",
+        "All tools are read-only against Public Open Data — the surface that 'privilege' could be reduced over is small"
+      ],
+      "gaps": [
+        "The same key is used for every endpoint (Discovery + Persons). ETH Library may offer scoped keys per API — not investigated or documented",
+        "No documentation in docs/ on how to request a minimum-scope key from developer.library.ethz.ch"
+      ]
+    },
+    "SEC-004": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "pass",
+      "evidence": [
+        "Both base URLs (DISCOVERY_BASE_URL, PERSONS_BASE_URL) are https:// hardcoded constants (server.py:34-35)",
+        "_http_get only accepts the constant base_url + a string path argument — no user-controlled URL is ever passed to httpx (server.py:104-124)",
+        "No url= parameter is exposed in any tool's pydantic input model — SSRF via tool input is structurally impossible"
+      ],
+      "gaps": []
+    },
+    "SEC-005": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "partial",
+      "evidence": [
+        "Server-controlled hostnames (api.library.ethz.ch) — DNS-rebinding attack would require compromising the ETH DNS or user network"
+      ],
+      "gaps": [
+        "No DNS-pinning / IP-pinning configured in the httpx.AsyncClient (server.py:121)",
+        "If a future feature adds tool-supplied URLs (currently none), DNS-rebinding becomes immediately exploitable",
+        "Risk is low today because no user-supplied URL ever reaches the HTTP client — but the defensive layer is absent"
+      ]
+    },
+    "SEC-006": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "Default __main__ behavior is stdio (server.py:1106-1107 falls through to mcp.run())",
+        "HTTP transport is opt-in via --http CLI flag",
+        "Claude Desktop example config uses stdio (claude_desktop_config.json)",
+        "README documents stdio as primary local transport (README.md Installation/Quickstart sections)"
+      ],
+      "gaps": []
+    },
+    "SEC-007": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "fail",
+      "evidence": [
+        "No Dockerfile present in the repository",
+        "No docker-compose.yml present"
+      ],
+      "gaps": [
+        "FAIL: No container image — operators running the HTTP transport must install Python locally and run as a regular user, with no sandbox boundary",
+        "FAIL: No documented sandboxing pattern (chroot, systemd-nspawn, firejail, WASM)",
+        "Streamable-HTTP deployment path therefore inherits whatever privileges the host process has"
+      ]
+    },
+    "SEC-008": {
+      "category": "SEC",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "README documents that ETH_LIBRARY_API_KEY is operator-controlled and never logged/transmitted to third parties (README.md:256)",
+        "Server stays read-only against Public Open Data — no destructive action surface that would require a user-facing consent gate",
+        "Claude Desktop config makes the env-var explicit — installer sees what credential is wired up"
+      ],
+      "gaps": []
+    },
+    "SEC-009": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "n/a",
+      "evidence": [
+        "No session/user model — server is stateless, each tool call is independent",
+        "No Mcp-Session-Id binding logic because there is no per-user state to protect",
+        "The only credential is the operator-owned upstream API key"
+      ],
+      "gaps": []
+    },
+    "SEC-013": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "partial",
+      "evidence": [
+        "Data class is Public Open Data — SEC-013 explicitly allows Stage 1 (plain env-var) for this class",
+        "API key is loaded from env, not hardcoded (server.py:101)"
+      ],
+      "gaps": [
+        "No docs/secret-management.md documenting the Stage-1 choice and the migration path to Stage 3 if scope changes",
+        "No 'docker history' equivalent check (because no Dockerfile exists — see SEC-007)"
+      ]
+    },
+    "SEC-016": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "fail",
+      "evidence": [
+        "server.py:1105 binds streamable-http transport to host='0.0.0.0' unconditionally when --http is passed"
+      ],
+      "gaps": [
+        "FAIL: 0.0.0.0 binding means every interface on the host accepts incoming MCP requests — on a developer laptop or unhardened VM, this exposes the server to LAN neighbors (NeighborJack)",
+        "FAIL: No --host CLI argument to override; no environment-variable opt-in for non-localhost binding",
+        "FAIL: README's Cloud Deployment section does not warn operators that a reverse-proxy or firewall is mandatory in front of this server",
+        "Default should be 127.0.0.1, with explicit opt-in for 0.0.0.0 only when behind a documented proxy"
+      ]
+    },
+    "SEC-018": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "Every tool consumes a pydantic BaseModel with model_config = ConfigDict(str_strip_whitespace=True, extra='forbid') (server.py:314,463,535,642,755,851)",
+        "Literal types enforce closed enumerations for sort, resource_type, archive (server.py:43-64)",
+        "min_length/max_length constraints on free-form query strings (e.g. query: min_length=1, max_length=500 at server.py:316-328)",
+        "ge/le constraints on numeric pagination (limit ge=1 le=100, offset ge=0)"
+      ],
+      "gaps": []
+    },
+    "SEC-019": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "pass",
+      "evidence": [
+        "Server is strictly read-only (HTTP GET only — explicit in README.md:254)",
+        "All tool annotations declare readOnlyHint=True, destructiveHint=False",
+        "No outbound-send capability (email/webhook/sms) — Lethal-Trifecta third leg is absent",
+        "Only external write action conceivable would be a future tool addition; current diff is clean"
+      ],
+      "gaps": []
+    },
+    "SEC-020": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "pass",
+      "evidence": [
+        "No os.system, no subprocess, no shell=True, no eval(), no exec() anywhere in src/ (grep returns 0 hits)",
+        "All upstream interaction goes through httpx.AsyncClient with parameterised query (server.py:121-124)",
+        "Query string is passed as the httpx params= dict — httpx performs URL-encoding"
+      ],
+      "gaps": []
+    },
+    "SEC-021": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "fail",
+      "evidence": [
+        "Two base URLs (api.library.ethz.ch/discovery, api.library.ethz.ch/persons) used as constants"
+      ],
+      "gaps": [
+        "FAIL: No code-layer ALLOWED_HOSTS frozenset that wraps every outbound httpx call",
+        "FAIL: No network-layer egress control documented (no NetworkPolicy, no Cloudflare WARP, no Security Group reference)",
+        "FAIL: No docs/network-egress.md — a future tool added with a different host would be silently allowed",
+        "Compromise of the codebase (typosquatted dependency, malicious commit) could redirect outbound traffic to an attacker-controlled host with no defence-in-depth"
+      ]
+    }
+  }
+}
