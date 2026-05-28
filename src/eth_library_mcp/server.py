@@ -14,41 +14,49 @@ APIs:
 Authentifizierung:
   Kostenloser API-Key via https://developer.library.ethz.ch
   Umgebungsvariable: ETH_LIBRARY_API_KEY
+
+Modulgrenzen (audit ARCH-004):
+  client.py        — httpx, Egress-Allow-List, Lifespan
+  formatting.py    — Markdown-Rendering, Persons-Parsing, Error-Mapping
+  logging_config.py — strukturiertes JSON-Logging auf stderr
+  server.py        — FastMCP-Tools, Resources, Prompts (diese Datei)
 """
 
+from __future__ import annotations
+
 import json
-import logging
 import os
 import sys
-from contextlib import asynccontextmanager
-from typing import Any, Literal
+from typing import Literal
 
-import httpx
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, ConfigDict, Field
 
-# ─── Logging ──────────────────────────────────────────────────────────────────
-# stdio-Transport reserviert stdout für das JSON-RPC-Protokoll. Logs müssen auf
-# stderr gehen, sonst korrumpieren sie die Protokoll-Frames (OBS-004).
+# Re-exports halten den Public-API-Pfad `eth_library_mcp.server.X` stabil.
+from eth_library_mcp.client import (  # noqa: F401
+    ALLOWED_EGRESS_HOSTS,
+    DISCOVERY_BASE_URL,
+    PERSONS_BASE_URL,
+    REQUEST_TIMEOUT,
+    _check_egress_allowed,
+    _get_api_key,
+    _http_get,
+    lifespan,
+)
+from eth_library_mcp.formatting import (  # noqa: F401
+    SOURCE_ATTRIBUTION,
+    _add_field,
+    _first,
+    _format_resource_detail,
+    _format_resource_summary,
+    _handle_error,
+    _parse_persons_response,
+)
+from eth_library_mcp.logging_config import configure_logging, get_logger
 
-logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
-logger = logging.getLogger(__name__)
+configure_logging(level=os.environ.get("ETH_LIBRARY_LOG_LEVEL", "INFO"))
+log = get_logger(__name__)
 
-# ─── API-Konfiguration ────────────────────────────────────────────────────────
-
-DISCOVERY_BASE_URL = "https://api.library.ethz.ch/discovery/v1"
-PERSONS_BASE_URL = "https://api.library.ethz.ch/persons/v1"
-# Hinweis: PERSONS_BASE_URL ist als potenziell defekt markiert (BUG-02).
-# Korrekten Endpunkt via https://developer.library.ethz.ch verifizieren.
-
-REQUEST_TIMEOUT = 30.0
-
-# SEC-021: Code-Layer Egress-Allow-List. Jeder ausgehende HTTP-Request muss
-# gegen einen Host in dieser Menge gehen — defence-in-depth gegen typo-
-# squatted Dependencies oder versehentliche neue Endpunkte. Bewusst als
-# frozenset, damit Laufzeit-Mutation nicht möglich ist. Dokumentiert in
-# docs/network-egress.md.
-ALLOWED_EGRESS_HOSTS: frozenset[str] = frozenset({"api.library.ethz.ch"})
 
 # ─── Typ-Aliase für Literal-Validierung ──────────────────────────────────────
 
@@ -103,244 +111,6 @@ ARCHIVE_SOURCES: dict[str, str] = {
 # ─── Sortiermöglichkeiten ─────────────────────────────────────────────────────
 
 SORT_OPTIONS = list(SortOption.__args__)  # type: ignore[attr-defined]
-
-
-# ─── HTTP-Client ──────────────────────────────────────────────────────────────
-
-
-def _get_api_key() -> str | None:
-    """API-Key aus Umgebungsvariable lesen (graceful degradation)."""
-    return os.environ.get("ETH_LIBRARY_API_KEY")
-
-
-# Shared httpx-Client, vom FastMCP-Lifespan verwaltet. Wenn der Server ohne
-# Lifespan läuft (z.B. in Unit-Tests), fällt _http_get auf einen Per-Call-Client
-# zurück.
-_http_client: httpx.AsyncClient | None = None
-
-
-def _check_egress_allowed(url: str) -> None:
-    """SEC-021: Verifiziert, dass der Host in der Egress-Allow-List steht."""
-    from urllib.parse import urlparse
-
-    host = urlparse(url).hostname or ""
-    if host not in ALLOWED_EGRESS_HOSTS:
-        raise PermissionError(
-            f"Egress denied: host {host!r} not in ALLOWED_EGRESS_HOSTS"
-        )
-
-
-async def _http_get(
-    base_url: str,
-    path: str,
-    params: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """
-    Zentrale Funktion für alle ETH-Bibliothek API-Anfragen.
-    Fügt automatisch den API-Key hinzu und behandelt Fehler konsistent.
-    """
-    api_key = _get_api_key()
-
-    request_params: dict[str, Any] = params or {}
-    if api_key:
-        request_params["apikey"] = api_key
-
-    url = f"{base_url}{path}"
-    _check_egress_allowed(url)
-
-    if _http_client is not None:
-        response = await _http_client.get(url, params=request_params)
-        response.raise_for_status()
-        return response.json()
-
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-        response = await client.get(url, params=request_params)
-        response.raise_for_status()
-        return response.json()
-
-
-# ─── Formatierungshilfsfunktionen ─────────────────────────────────────────────
-
-
-def _first(lst: list[Any]) -> str:
-    """Erstes Element einer Liste als String, leer wenn nicht vorhanden."""
-    return str(lst[0]) if lst else ""
-
-
-def _add_field(lines: list[str], label: str, value: str) -> None:
-    """Fügt ein Feld zur Detailansicht hinzu, falls vorhanden."""
-    if value:
-        lines.append(f"**{label}:** {value}")
-
-
-def _format_resource_summary(doc: dict[str, Any]) -> str:
-    """Formatiert einen einzelnen Discovery-Eintrag als kompakte Markdown-Zeile."""
-    pnx = doc.get("pnx", {})
-    display = pnx.get("display", {})
-    addata = pnx.get("addata", {})
-
-    title = _first(display.get("title", []))
-    creator = _first(display.get("creator", []))
-    date = _first(display.get("creationdate", []))
-    rtype = _first(display.get("type", []))
-    mmsid = doc.get("context", {}).get("mmsid", "")
-    doi = _first(addata.get("doi", []))
-
-    parts = [f"**{title or 'Kein Titel'}**"]
-    if creator:
-        parts.append(f"von {creator}")
-    if date:
-        parts.append(f"({date})")
-    if rtype:
-        parts.append(f"[{rtype}]")
-    if mmsid:
-        parts.append(f"MMS-ID: `{mmsid}`")
-    if doi:
-        parts.append(f"DOI: {doi}")
-
-    return " – ".join(parts)
-
-
-def _format_resource_detail(doc: dict[str, Any]) -> str:
-    """Formatiert einen Discovery-Eintrag als detailliertes Markdown-Dokument."""
-    pnx = doc.get("pnx", {})
-    display = pnx.get("display", {})
-    addata = pnx.get("addata", {})
-    links = doc.get("delivery", {}).get("link", [])
-
-    lines: list[str] = []
-
-    title = _first(display.get("title", []))
-    lines.append(f"# {title or 'Kein Titel'}")
-    lines.append("")
-
-    _add_field(lines, "Autor/in", _first(display.get("creator", [])))
-    _add_field(lines, "Mitwirkende", ", ".join(display.get("contributor", [])))
-    _add_field(lines, "Jahr", _first(display.get("creationdate", [])))
-    _add_field(lines, "Typ", _first(display.get("type", [])))
-    _add_field(lines, "Sprache", _first(display.get("language", [])))
-    _add_field(lines, "Verlag", _first(display.get("publisher", [])))
-    _add_field(lines, "Erscheinungsort", _first(display.get("place", [])))
-    _add_field(lines, "ISSN", _first(addata.get("issn", [])))
-    _add_field(lines, "ISBN", _first(addata.get("isbn", [])))
-    _add_field(lines, "DOI", _first(addata.get("doi", [])))
-    _add_field(lines, "MMS-ID", doc.get("context", {}).get("mmsid", ""))
-
-    subjects = display.get("subject", [])
-    if subjects:
-        lines.append(f"**Schlagworte:** {', '.join(subjects[:10])}")
-
-    description = _first(display.get("description", []))
-    if description:
-        lines.append("")
-        lines.append(f"**Beschreibung:** {description[:500]}")
-
-    if links:
-        lines.append("")
-        lines.append("**Links:**")
-        for link in links[:5]:
-            label = link.get("displayLabel", "Link")
-            href = link.get("linkURL", "")
-            if href:
-                lines.append(f"- [{label}]({href})")
-
-    return "\n".join(filter(None, lines))
-
-
-def _parse_persons_response(data: Any) -> list[dict[str, Any]]:
-    """
-    Robustes Parsing der Persons-API-Antwort.
-
-    Unterstützt verschiedene Response-Strukturen der ETH Persons API:
-    - Direkte Liste: [...]
-    - Wrapper mit 'persons', 'results', 'data', 'items' oder 'hits' Key
-    """
-    if isinstance(data, list):
-        return data
-
-    if isinstance(data, dict):
-        for key in ("persons", "results", "data", "items", "hits"):
-            if key in data:
-                value = data[key]
-                if isinstance(value, list):
-                    return value
-
-        logger.warning(
-            "Persons-API: Unbekannte Response-Struktur. "
-            "Bekannte Keys: %s. Gefundene Keys: %s",
-            ["persons", "results", "data", "items", "hits"],
-            list(data.keys()),
-        )
-
-    return []
-
-
-def _handle_error(
-    e: Exception,
-    context: str = "",
-    is_search: bool = True,
-) -> str:
-    """
-    Einheitliche, hilfreiche Fehlermeldungen – kein Hard-Failure.
-
-    Kontext-spezifische 404-Meldung:
-      is_search=True  → 'Keine Ergebnisse oder Endpunkt nicht gefunden'
-      is_search=False → 'Ressource mit dieser ID nicht gefunden'
-    """
-    prefix = f"Fehler bei {context}: " if context else "Fehler: "
-
-    if isinstance(e, httpx.HTTPStatusError):
-        status = e.response.status_code
-        if status == 401:
-            return (
-                f"{prefix}Kein gültiger API-Key. "
-                "Bitte ETH_LIBRARY_API_KEY Umgebungsvariable setzen. "
-                "Kostenlose Registrierung: https://developer.library.ethz.ch"
-            )
-        elif status == 403:
-            return f"{prefix}Zugriff verweigert (HTTP 403)."
-        elif status == 404:
-            if is_search:
-                return (
-                    f"{prefix}Keine Ergebnisse oder Endpunkt nicht gefunden (HTTP 404). "
-                    "Bitte Suchanfrage oder API-Endpunkt prüfen."
-                )
-            else:
-                return (
-                    f"{prefix}Ressource mit dieser ID nicht gefunden (HTTP 404). "
-                    "Bitte MMS-ID prüfen."
-                )
-        elif status == 429:
-            return f"{prefix}Rate-Limit erreicht (HTTP 429). Bitte kurz warten."
-        # OBS-002: Upstream-Response-Body NICHT durchreichen — er kann Proxy-
-        # Errors, Stacktraces oder andere Internals enthalten.
-        return f"{prefix}HTTP-Fehler {status}."
-    elif isinstance(e, httpx.TimeoutException):
-        return f"{prefix}Zeitüberschreitung. ETH-Bibliothek API nicht erreichbar."
-    elif isinstance(e, httpx.ConnectError):
-        return f"{prefix}Verbindungsfehler. Internetverbindung prüfen."
-    # OBS-002: Generischer Fall — interne Exception-Klasse + str(e) leaken
-    # Implementations-Details an den LLM. Stattdessen generische Meldung,
-    # Details landen in stderr-Log.
-    logger.warning("Unbehandelter Fehler in _handle_error: %s: %s", type(e).__name__, e)
-    return f"{prefix}Unbekannter Fehler. Bitte später erneut versuchen."
-
-
-# ─── Lifespan-Management ──────────────────────────────────────────────────────
-# SDK-001: Ein geteilter httpx.AsyncClient pro Server-Prozess statt Per-Call-
-# Instanziierung. Spart TLS-Handshake bei jeder Tool-Ausführung und gibt
-# Connection-Pooling überhaupt erst eine Chance.
-
-
-@asynccontextmanager
-async def lifespan(_server: FastMCP):
-    global _http_client
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-        _http_client = client
-        try:
-            yield {}
-        finally:
-            _http_client = None
 
 
 # ─── Server-Initialisierung ───────────────────────────────────────────────────
@@ -430,26 +200,15 @@ class SearchResourcesInput(BaseModel):
         "openWorldHint": True,
     },
 )
-async def eth_search_resources(params: SearchResourcesInput) -> str:
+async def eth_search_resources(
+    params: SearchResourcesInput,
+    ctx: Context | None = None,
+) -> str:
     """
     Durchsucht den Katalog der ETH-Bibliothek mit über 30 Millionen Ressourcen.
 
     Nutzt die Discovery API (api.library.ethz.ch/discovery/v1/resources).
     Unterstützt Freitextsuche, Feldsuche, Facetten-Filter und Pagination.
-
-    Args:
-        params (SearchResourcesInput): Suchparameter mit:
-            - query (str): Suchanfrage (z.B. 'any,contains,Quantenphysik')
-            - limit (int): Anzahl Ergebnisse (1–100)
-            - offset (int): Offset für Pagination
-            - sort (str): Sortierung (rank/title/author/date)
-            - resource_type (str): Typ-Filter (books/journals/maps/images/...)
-            - language (str): Sprachfilter
-            - open_access_only (bool): Nur OA-Ressourcen
-            - response_lang (str): Sprache der API-Antwort
-
-    Returns:
-        str: Markdown-formatierte Ergebnisliste mit Titel, Autor, Jahr, Typ, MMS-ID
     """
     try:
         api_params: dict = {
@@ -462,7 +221,6 @@ async def eth_search_resources(params: SearchResourcesInput) -> str:
         if params.sort:
             api_params["sort"] = params.sort
 
-        # Facetten-Filter zusammenbauen
         include_parts: list[str] = []
         if params.resource_type:
             include_parts.append(f"facet_rtype,exact,{params.resource_type}")
@@ -473,6 +231,9 @@ async def eth_search_resources(params: SearchResourcesInput) -> str:
 
         if include_parts:
             api_params["qInclude"] = "|,|".join(include_parts)
+
+        if ctx is not None and params.limit > 50:
+            await ctx.report_progress(0, params.limit, "Suche läuft")
 
         data = await _http_get(DISCOVERY_BASE_URL, "/resources", api_params)
 
@@ -496,7 +257,6 @@ async def eth_search_resources(params: SearchResourcesInput) -> str:
         for i, doc in enumerate(docs, start=params.offset + 1):
             lines.append(f"{i}. {_format_resource_summary(doc)}")
 
-        # Pagination-Hinweis
         if total > params.offset + len(docs):
             next_offset = params.offset + params.limit
             lines.append("")
@@ -505,9 +265,13 @@ async def eth_search_resources(params: SearchResourcesInput) -> str:
                 f"({total - next_offset:,} verbleibend)*"
             )
 
+        lines.append("")
+        lines.append(f"*{SOURCE_ATTRIBUTION}*")
         return "\n".join(lines)
 
     except Exception as e:
+        if ctx is not None:
+            await ctx.warning(f"Discovery-Suche fehlgeschlagen: {type(e).__name__}")
         return _handle_error(e, f"Suche nach '{params.query}'", is_search=True)
 
 
@@ -550,22 +314,11 @@ class GetResourceInput(BaseModel):
         "openWorldHint": True,
     },
 )
-async def eth_get_resource(params: GetResourceInput) -> str:
-    """
-    Ruft eine einzelne Ressource der ETH-Bibliothek anhand ihrer MMS-ID ab.
-
-    Liefert vollständige bibliografische Metadaten, Schlagworte,
-    Beschreibung, Links und optional Verfügbarkeitsstatus.
-
-    Args:
-        params (GetResourceInput): Parameter mit:
-            - mmsid (str): Alma MMS-ID (z.B. '990075811280205503')
-            - include_availability (bool): Ausleihstatus einbeziehen
-            - lang (str): Antwortsprache
-
-    Returns:
-        str: Vollständige Markdown-Darstellung der Ressource
-    """
+async def eth_get_resource(
+    params: GetResourceInput,
+    ctx: Context | None = None,
+) -> str:
+    """Ruft eine einzelne Ressource der ETH-Bibliothek anhand ihrer MMS-ID ab."""
     try:
         api_params: dict = {
             "lang": params.lang,
@@ -580,6 +333,8 @@ async def eth_get_resource(params: GetResourceInput) -> str:
         return _format_resource_detail(doc)
 
     except Exception as e:
+        if ctx is not None:
+            await ctx.warning(f"Resource-Abruf fehlgeschlagen: {type(e).__name__}")
         return _handle_error(e, f"Abruf MMS-ID '{params.mmsid}'", is_search=False)
 
 
@@ -625,27 +380,11 @@ class SearchArchiveInput(BaseModel):
         "openWorldHint": True,
     },
 )
-async def eth_search_archive(params: SearchArchiveInput) -> str:
-    """
-    Durchsucht ein spezifisches Archiv oder eine Sammlung der ETH-Bibliothek.
-
-    Verfügbare Archive:
-    - ETH_Hochschularchiv: Hochschularchiv der ETH Zürich (institutionelles Gedächtnis)
-    - ETH_MaxFrischArchiv: Nachlass des Schweizer Autors Max Frisch
-    - ETH_ThomasMannArchiv: Archiv mit Briefen und Dokumenten von Thomas Mann
-    - ETH_GraphischeSammlung: Graphische Sammlung (Drucke, Zeichnungen)
-    - ETH_Bildarchiv: Bildarchiv E-Pics (Wissenschafts-/Technikgeschichte, Swissair)
-
-    Args:
-        params (SearchArchiveInput): Parameter mit:
-            - archive (str): Archivkennung
-            - query (str): Optionale Suche innerhalb des Archivs
-            - limit (int): Ergebnisanzahl
-            - offset (int): Offset für Pagination
-
-    Returns:
-        str: Markdown-Liste der Archivressourcen
-    """
+async def eth_search_archive(
+    params: SearchArchiveInput,
+    ctx: Context | None = None,
+) -> str:
+    """Durchsucht ein spezifisches Archiv oder eine Sammlung der ETH-Bibliothek."""
     archive_name = ARCHIVE_SOURCES.get(params.archive, params.archive)
 
     try:
@@ -684,9 +423,13 @@ async def eth_search_archive(params: SearchArchiveInput) -> str:
                 f"\n*Weitere Einträge verfügbar. offset={next_offset} verwenden.*"
             )
 
+        lines.append("")
+        lines.append(f"*{SOURCE_ATTRIBUTION}*")
         return "\n".join(lines)
 
     except Exception as e:
+        if ctx is not None:
+            await ctx.warning(f"Archiv-Suche fehlgeschlagen: {type(e).__name__}")
         return _handle_error(e, f"Archivsuche '{archive_name}'", is_search=True)
 
 
@@ -734,27 +477,11 @@ class SearchByTypeInput(BaseModel):
         "openWorldHint": True,
     },
 )
-async def eth_search_by_type(params: SearchByTypeInput) -> str:
-    """
-    Sucht Ressourcen eines bestimmten Typs (Karten, Bilder, Archive, etc.).
-
-    Besonders nützlich für:
-    - Alle Karten der ETH-Bibliothek: resource_type='maps'
-    - Alle Bilder: resource_type='images'
-    - Archivmaterialien: resource_type='archival_materials'
-    - Nur Open-Access-Artikel: resource_type='articles', open_access_only=True
-
-    Args:
-        params (SearchByTypeInput): Parameter mit:
-            - resource_type (str): Ressourcentyp (validierter Literal-Typ)
-            - query (str): Optionale Einschränkung
-            - open_access_only (bool): Nur OA-Ressourcen
-            - limit (int): Ergebnisanzahl
-            - offset (int): Pagination-Offset
-
-    Returns:
-        str: Markdown-Ergebnisliste nach Typ gefiltert
-    """
+async def eth_search_by_type(
+    params: SearchByTypeInput,
+    ctx: Context | None = None,
+) -> str:
+    """Sucht Ressourcen eines bestimmten Typs (Karten, Bilder, Archive, etc.)."""
     type_label = RESOURCE_TYPES.get(params.resource_type, params.resource_type)
 
     try:
@@ -797,9 +524,13 @@ async def eth_search_by_type(params: SearchByTypeInput) -> str:
                 f"({total - next_offset:,} verbleibend)*"
             )
 
+        lines.append("")
+        lines.append(f"*{SOURCE_ATTRIBUTION}*")
         return "\n".join(lines)
 
     except Exception as e:
+        if ctx is not None:
+            await ctx.warning(f"Typ-Suche fehlgeschlagen: {type(e).__name__}")
         return _handle_error(e, f"Typ-Suche '{type_label}'", is_search=True)
 
 
@@ -835,24 +566,16 @@ class SearchPersonsInput(BaseModel):
         "openWorldHint": True,
     },
 )
-async def eth_search_persons(params: SearchPersonsInput) -> str:
+async def eth_search_persons(
+    params: SearchPersonsInput,
+    ctx: Context | None = None,
+) -> str:
     """
     Sucht Personen in der ETH-Bibliothek Persons API.
 
     ⚠ HINWEIS BUG-02: Der Persons-API-Endpunkt (/persons/v1/persons) gibt
     aktuell HTTP 404 zurück. Die korrekte URL muss via developer.library.ethz.ch
-    verifiziert werden. Das Tool ist strukturell korrekt implementiert.
-
-    Liefert Personeninformationen mit Linked-Data-Anreicherung aus:
-    Wikidata, Metagrid, DNB Entityfacts, beacon.findbuch.
-
-    Args:
-        params (SearchPersonsInput): Parameter mit:
-            - query (str): Name/Stichwort (z.B. 'Einstein Albert')
-            - limit (int): Anzahl Ergebnisse
-
-    Returns:
-        str: Markdown-Liste gefundener Personen mit externen Verlinkungen
+    verifiziert werden.
     """
     try:
         api_params: dict = {
@@ -865,6 +588,8 @@ async def eth_search_persons(params: SearchPersonsInput) -> str:
         persons = _parse_persons_response(data)
 
         if not persons:
+            if ctx is not None:
+                await ctx.info("persons_no_results")
             return (
                 f"Keine Personen gefunden für '{params.query}'. "
                 "Tipp: Vollständigen Namen (Nachname Vorname) versuchen."
@@ -893,9 +618,13 @@ async def eth_search_persons(params: SearchPersonsInput) -> str:
                     line += f" | GND: `{gnd}`"
                 lines.append(line)
 
+        lines.append("")
+        lines.append(f"*{SOURCE_ATTRIBUTION}*")
         return "\n".join(lines)
 
     except Exception as e:
+        if ctx is not None:
+            await ctx.warning(f"Persons-Suche fehlgeschlagen: {type(e).__name__}")
         return _handle_error(e, f"Personensuche '{params.query}'", is_search=True)
 
 
@@ -943,23 +672,11 @@ class SearchEducationInput(BaseModel):
         "openWorldHint": True,
     },
 )
-async def eth_search_education(params: SearchEducationInput) -> str:
-    """
-    Kuratierte Suche nach bildungsrelevanten Ressourcen in der ETH-Bibliothek.
-
-    Optimiert für Pädagogik, Schulgeschichte, Bildungsforschung und
-    didaktische Materialien. Besonders relevant für den Schulamt-Kontext.
-
-    Args:
-        params (SearchEducationInput): Parameter mit:
-            - topic (str): Bildungsthema (z.B. 'Volksschule Zürich Geschichte')
-            - resource_type (str): Optionaler Typ-Filter (validierter Literal-Typ)
-            - open_access_only (bool): Nur OA-Ressourcen
-            - limit (int): Ergebnisanzahl
-
-    Returns:
-        str: Markdown-Ergebnisliste bildungsrelevanter Ressourcen
-    """
+async def eth_search_education(
+    params: SearchEducationInput,
+    ctx: Context | None = None,
+) -> str:
+    """Kuratierte Suche nach bildungsrelevanten Ressourcen in der ETH-Bibliothek."""
     query = f"any,contains,{params.topic}"
 
     try:
@@ -1007,9 +724,13 @@ async def eth_search_education(params: SearchEducationInput) -> str:
                 f"eth_search_resources mit offset für weitere Seiten nutzen.*"
             )
 
+        lines.append("")
+        lines.append(f"*{SOURCE_ATTRIBUTION}*")
         return "\n".join(lines)
 
     except Exception as e:
+        if ctx is not None:
+            await ctx.warning(f"Bildungs-Suche fehlgeschlagen: {type(e).__name__}")
         return _handle_error(e, f"Bildungssuche '{params.topic}'", is_search=True)
 
 
@@ -1029,15 +750,7 @@ async def eth_search_education(params: SearchEducationInput) -> str:
     },
 )
 async def eth_library_info() -> str:
-    """
-    Gibt eine Übersicht über den ETH Library MCP Server zurück:
-    verfügbare APIs, Ressourcentypen, Archive und Konfigurationsstatus.
-
-    Nützlich als Einstiegspunkt vor einer Suche.
-
-    Returns:
-        str: Vollständige Markdown-Dokumentation des Servers
-    """
+    """Gibt eine Übersicht über den ETH Library MCP Server zurück."""
     api_key = os.environ.get("ETH_LIBRARY_API_KEY")
     key_status = (
         "✅ Konfiguriert"
@@ -1149,19 +862,12 @@ Fokus: Pädagogik, Schulgeschichte, Bildungsforschung, didaktische Materialien."
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# EINSTIEGSPUNKT – Dual Transport (stdio + Streamable HTTP)
+# EINSTIEGSPUNKT – stdio (default) oder Streamable HTTP (--http)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
 def _run_http(host: str, port: int) -> None:
-    """SDK-004: Streamable-HTTP-Transport mit CORS-Middleware.
-
-    FastMCP exponiert via ``streamable_http_app()`` eine Starlette-App, die
-    direkt gewrappt werden kann. ``Mcp-Session-Id`` muss sowohl in
-    ``allow_headers`` (für Follow-Up-Requests des Browser-Clients) als auch
-    in ``expose_headers`` (damit der Client den Header aus der Initial-
-    Response lesen darf) auftauchen.
-    """
+    """SDK-004: Streamable-HTTP-Transport mit CORS-Middleware."""
     import uvicorn
     from starlette.middleware.cors import CORSMiddleware
 
