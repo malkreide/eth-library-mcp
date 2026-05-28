@@ -43,6 +43,13 @@ PERSONS_BASE_URL = "https://api.library.ethz.ch/persons/v1"
 
 REQUEST_TIMEOUT = 30.0
 
+# SEC-021: Code-Layer Egress-Allow-List. Jeder ausgehende HTTP-Request muss
+# gegen einen Host in dieser Menge gehen — defence-in-depth gegen typo-
+# squatted Dependencies oder versehentliche neue Endpunkte. Bewusst als
+# frozenset, damit Laufzeit-Mutation nicht möglich ist. Dokumentiert in
+# docs/network-egress.md.
+ALLOWED_EGRESS_HOSTS: frozenset[str] = frozenset({"api.library.ethz.ch"})
+
 # ─── Typ-Aliase für Literal-Validierung ──────────────────────────────────────
 
 SortOption = Literal["rank", "title", "author", "date"]
@@ -112,6 +119,17 @@ def _get_api_key() -> str | None:
 _http_client: httpx.AsyncClient | None = None
 
 
+def _check_egress_allowed(url: str) -> None:
+    """SEC-021: Verifiziert, dass der Host in der Egress-Allow-List steht."""
+    from urllib.parse import urlparse
+
+    host = urlparse(url).hostname or ""
+    if host not in ALLOWED_EGRESS_HOSTS:
+        raise PermissionError(
+            f"Egress denied: host {host!r} not in ALLOWED_EGRESS_HOSTS"
+        )
+
+
 async def _http_get(
     base_url: str,
     path: str,
@@ -128,6 +146,7 @@ async def _http_get(
         request_params["apikey"] = api_key
 
     url = f"{base_url}{path}"
+    _check_egress_allowed(url)
 
     if _http_client is not None:
         response = await _http_client.get(url, params=request_params)
@@ -1134,6 +1153,29 @@ Fokus: Pädagogik, Schulgeschichte, Bildungsforschung, didaktische Materialien."
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
+def _run_http(host: str, port: int) -> None:
+    """SDK-004: Streamable-HTTP-Transport mit CORS-Middleware.
+
+    FastMCP exponiert via ``streamable_http_app()`` eine Starlette-App, die
+    direkt gewrappt werden kann. ``Mcp-Session-Id`` muss sowohl in
+    ``allow_headers`` (für Follow-Up-Requests des Browser-Clients) als auch
+    in ``expose_headers`` (damit der Client den Header aus der Initial-
+    Response lesen darf) auftauchen.
+    """
+    import uvicorn
+    from starlette.middleware.cors import CORSMiddleware
+
+    app = mcp.streamable_http_app()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Mcp-Session-Id", "Content-Type"],
+        expose_headers=["Mcp-Session-Id"],
+    )
+    uvicorn.run(app, host=host, port=port, log_level="warning")
+
+
 if __name__ == "__main__":
     if "--http" in sys.argv:
         # SEC-016: Default-Bind auf Loopback. Public-Exposure nur via
@@ -1145,6 +1187,6 @@ if __name__ == "__main__":
                 port = int(sys.argv[i + 1])
             if arg == "--host" and i + 1 < len(sys.argv):
                 host = sys.argv[i + 1]
-        mcp.run(transport="streamable-http", host=host, port=port)
+        _run_http(host, port)
     else:
         mcp.run()
