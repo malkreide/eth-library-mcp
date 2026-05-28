@@ -19,6 +19,8 @@ Authentifizierung:
 import json
 import logging
 import os
+import sys
+from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 import httpx
@@ -26,7 +28,10 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
+# stdio-Transport reserviert stdout für das JSON-RPC-Protokoll. Logs müssen auf
+# stderr gehen, sonst korrumpieren sie die Protokoll-Frames (OBS-004).
 
+logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # ─── API-Konfiguration ────────────────────────────────────────────────────────
@@ -101,6 +106,12 @@ def _get_api_key() -> str | None:
     return os.environ.get("ETH_LIBRARY_API_KEY")
 
 
+# Shared httpx-Client, vom FastMCP-Lifespan verwaltet. Wenn der Server ohne
+# Lifespan läuft (z.B. in Unit-Tests), fällt _http_get auf einen Per-Call-Client
+# zurück.
+_http_client: httpx.AsyncClient | None = None
+
+
 async def _http_get(
     base_url: str,
     path: str,
@@ -117,6 +128,11 @@ async def _http_get(
         request_params["apikey"] = api_key
 
     url = f"{base_url}{path}"
+
+    if _http_client is not None:
+        response = await _http_client.get(url, params=request_params)
+        response.raise_for_status()
+        return response.json()
 
     async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
         response = await client.get(url, params=request_params)
@@ -277,12 +293,35 @@ def _handle_error(
                 )
         elif status == 429:
             return f"{prefix}Rate-Limit erreicht (HTTP 429). Bitte kurz warten."
-        return f"{prefix}HTTP-Fehler {status}: {e.response.text[:200]}"
+        # OBS-002: Upstream-Response-Body NICHT durchreichen — er kann Proxy-
+        # Errors, Stacktraces oder andere Internals enthalten.
+        return f"{prefix}HTTP-Fehler {status}."
     elif isinstance(e, httpx.TimeoutException):
         return f"{prefix}Zeitüberschreitung. ETH-Bibliothek API nicht erreichbar."
     elif isinstance(e, httpx.ConnectError):
         return f"{prefix}Verbindungsfehler. Internetverbindung prüfen."
-    return f"{prefix}{type(e).__name__}: {e}"
+    # OBS-002: Generischer Fall — interne Exception-Klasse + str(e) leaken
+    # Implementations-Details an den LLM. Stattdessen generische Meldung,
+    # Details landen in stderr-Log.
+    logger.warning("Unbehandelter Fehler in _handle_error: %s: %s", type(e).__name__, e)
+    return f"{prefix}Unbekannter Fehler. Bitte später erneut versuchen."
+
+
+# ─── Lifespan-Management ──────────────────────────────────────────────────────
+# SDK-001: Ein geteilter httpx.AsyncClient pro Server-Prozess statt Per-Call-
+# Instanziierung. Spart TLS-Handshake bei jeder Tool-Ausführung und gibt
+# Connection-Pooling überhaupt erst eine Chance.
+
+
+@asynccontextmanager
+async def lifespan(_server: FastMCP):
+    global _http_client
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+        _http_client = client
+        try:
+            yield {}
+        finally:
+            _http_client = None
 
 
 # ─── Server-Initialisierung ───────────────────────────────────────────────────
@@ -300,6 +339,7 @@ mcp = FastMCP(
         "(developer.library.ethz.ch). "
         "Alle Metadaten sind frei nutzbar (Public Domain / CC0)."
     ),
+    lifespan=lifespan,
 )
 
 
@@ -1095,13 +1135,16 @@ Fokus: Pädagogik, Schulgeschichte, Bildungsforschung, didaktische Materialien."
 
 
 if __name__ == "__main__":
-    import sys
-
     if "--http" in sys.argv:
+        # SEC-016: Default-Bind auf Loopback. Public-Exposure nur via
+        # explizitem --host (z.B. hinter Reverse-Proxy / Firewall).
         port = 8000
+        host = "127.0.0.1"
         for i, arg in enumerate(sys.argv):
             if arg == "--port" and i + 1 < len(sys.argv):
                 port = int(sys.argv[i + 1])
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=port)
+            if arg == "--host" and i + 1 < len(sys.argv):
+                host = sys.argv[i + 1]
+        mcp.run(transport="streamable-http", host=host, port=port)
     else:
         mcp.run()
