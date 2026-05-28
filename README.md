@@ -25,6 +25,8 @@
 
 **7 Tools · 3 APIs · 2 Resources · 2 Prompts**
 
+**MCP Protocol Version:** [`2025-06-18`](https://modelcontextprotocol.io/specification/) (via `mcp[cli]>=1.0.0,<2.0.0`).
+
 > ⚠️ **Known issue (BUG-02):** The tool `eth_search_persons` is currently non-functional because the Persons API endpoint returns HTTP 404. The correct URL needs to be verified at [developer.library.ethz.ch](https://developer.library.ethz.ch). All other 6 tools work correctly.
 
 **Anchor demo query:** *"Find historical documents about Zurich school history in the ETH Library archives."*
