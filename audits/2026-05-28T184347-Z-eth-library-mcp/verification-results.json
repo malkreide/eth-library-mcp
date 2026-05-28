@@ -1,0 +1,435 @@
+{
+  "audit_meta": {
+    "server_name": "eth-library-mcp",
+    "run_id": "2026-05-28T184347-Z-eth-library-mcp",
+    "skill_version": "0.5.0",
+    "auditor": "Claude (mcp-audit-skill, re-audit after Sprints 1-3)",
+    "policy": "fail-or-partial",
+    "previous_run_id": "2026-05-28T142641-Z-eth-library-mcp"
+  },
+  "results": {
+    "ARCH-001": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "All 7 tool names use snake_case with consistent eth_ prefix (server.py)",
+        "Names verb+noun and unambiguous",
+        "Unchanged since first audit"
+      ],
+      "gaps": []
+    },
+    "ARCH-002": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Every tool defines a title annotation",
+        "Tool docstrings document parameters",
+        "Server-level instructions string explains domain context (server.py:121-132)"
+      ],
+      "gaps": []
+    },
+    "ARCH-003": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Empty-result branches return helpful tips",
+        "_handle_error converts 404 into context-specific guidance",
+        "Persons-search empty case suggests fuller name format"
+      ],
+      "gaps": []
+    },
+    "ARCH-004": {
+      "category": "ARCH",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "server.py split into 4 modules: client.py (93 LOC), formatting.py (192 LOC), logging_config.py (50 LOC), server.py (898 LOC — tools + FastMCP only)",
+        "HTTP/transport concerns isolated in client.py; rendering pure in formatting.py",
+        "server.py re-exports prior public names so consumer API stays stable",
+        "Architecture documented in docs/ARCHITECTURE.md"
+      ],
+      "gaps": []
+    },
+    "ARCH-005": {
+      "category": "ARCH",
+      "severity": "critical",
+      "status": "pass",
+      "evidence": [
+        "No hardcoded secrets in src/ (grep returns 0 hits)",
+        ".gitignore present and excludes .env, .env.* (except .env.example)",
+        ".env.example committed with placeholder only",
+        "API key loaded from environment via os.environ.get",
+        "OBS-002 fix ensures the key never appears in tool returns or logs"
+      ],
+      "gaps": [
+        "CI gitleaks/trufflehog gate still absent — captured as backlog item; not blocking because the repository structure now prevents accidental .env commits"
+      ]
+    },
+    "ARCH-006": {
+      "category": "ARCH",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "Tool inventory rationale documented in docs/ARCHITECTURE.md — keeping 4 search tools separate is an intentional LLM-ergonomics choice",
+        "Closed-Literal-enum guardrails (ArchiveKey, ResourceType) make tool selection unambiguous",
+        "Tools remain under the 10-15 budget threshold (7 total)"
+      ],
+      "gaps": []
+    },
+    "ARCH-007": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Helpers in formatting.py composable and reused across tools",
+        "Tools themselves atomic — each does one Discovery/Persons API call",
+        "Composability stronger after the split (client.py / formatting.py separation)"
+      ],
+      "gaps": []
+    },
+    "ARCH-008": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "7 @mcp.tool functions, 2 @mcp.resource endpoints, 2 @mcp.prompt workflows",
+        "All three MCP primitives in active use"
+      ],
+      "gaps": []
+    },
+    "ARCH-009": {
+      "category": "ARCH",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "All 6 search/get tools declare readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True",
+        "eth_library_info correctly sets openWorldHint=False (server.py:805)",
+        "Annotations match actual behaviour"
+      ],
+      "gaps": []
+    },
+    "ARCH-011": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "src-layout preserved; tests/ directory present",
+        "Bilingual README (README.md + README.de.md)",
+        "CHANGELOG.md, CONTRIBUTING.md, LICENSE, EXAMPLES.md, ARCHITECTURE.md present",
+        "Monolithic server.py split into 4 focused modules (Sprint 3)"
+      ],
+      "gaps": []
+    },
+    "ARCH-012": {
+      "category": "ARCH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "All dependencies pinned with upper bounds: mcp[cli]>=1.0.0,<2.0.0, httpx>=0.27.0,<1.0.0, pydantic>=2.0.0,<3.0.0, structlog>=24.0.0,<26.0.0",
+        "README declares MCP Protocol Version 2025-06-18",
+        "CHANGELOG.md in Keep-a-Changelog format"
+      ],
+      "gaps": []
+    },
+    "CH-004": {
+      "category": "CH",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "SOURCE_ATTRIBUTION constant in formatting.py:20 appended to every formatted resource and tool response",
+        "docs/data-sources.md enumerates upstream APIs and the four linked-data sources (Wikidata, Metagrid, DNB, beacon.findbuch) with licences",
+        "README documents Public Domain licensing"
+      ],
+      "gaps": []
+    },
+    "OBS-001": {
+      "category": "OBS",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "_handle_error returns user-friendly strings (tool-result envelope) rather than raising",
+        "Distinct branches for HTTPStatusError, TimeoutException, ConnectError, generic Exception"
+      ],
+      "gaps": []
+    },
+    "OBS-002": {
+      "category": "OBS",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "Upstream response body no longer reaches LLM — grep for 'e.response.text' returns 0 hits",
+        "Generic-exception branch no longer leaks type(e).__name__ or str(e) — generic message + stderr log only",
+        "Regression test test_search_resources_http_500_body_not_leaked asserts the leak does not return"
+      ],
+      "gaps": []
+    },
+    "OBS-003": {
+      "category": "OBS",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "structlog>=24.0.0 declared in dependencies",
+        "JSON output via structlog.processors.JSONRenderer (logging_config.py:38)",
+        "All 4 severity levels actively used in code: log.debug (client.py upstream_request), log.info (client.py server_starting/stopping), log.warning (formatting.py persons_api_unknown_structure), log.error (formatting.py unhandled_exception)"
+      ],
+      "gaps": []
+    },
+    "OBS-004": {
+      "category": "OBS",
+      "severity": "critical",
+      "status": "pass",
+      "evidence": [
+        "Explicit logging.basicConfig(stream=sys.stderr) in logging_config.py:27",
+        "structlog factory uses PrintLoggerFactory(file=sys.stderr) (logging_config.py:44)",
+        "Both layers ensure no log output can corrupt stdio JSON-RPC stdout"
+      ],
+      "gaps": []
+    },
+    "OPS-001": {
+      "category": "OPS",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "38 unit tests total — 25 in test_server.py (helpers + input validation), 13 in test_tools.py (every @mcp.tool exercised via respx mocks)",
+        "test_tools.py includes regression tests for OBS-002 (no body leak) and SEC-021 (egress block)",
+        "Live-marker test gating in pyproject.toml + CI workflow (pytest -m 'not live')"
+      ],
+      "gaps": []
+    },
+    "OPS-002": {
+      "category": "OPS",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Bilingual README (README.md + README.de.md)",
+        "Safety & Limits section present with rate limits, timeout, ToS",
+        "Project Structure section with ASCII tree",
+        "Known issue (BUG-02) documented in README and CHANGELOG",
+        "docs/ tree now contains ARCHITECTURE.md, data-sources.md, network-egress.md, scope-minimization.md, secret-management.md"
+      ],
+      "gaps": []
+    },
+    "OPS-003": {
+      "category": "OPS",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "All tools read-only (HTTP GET against external APIs)",
+        "README explicitly states 'Read-only: All tools perform HTTP GET requests only'",
+        "Tool annotations declare readOnlyHint=True consistently"
+      ],
+      "gaps": []
+    },
+    "SCALE-002": {
+      "category": "SCALE",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "docs/ARCHITECTURE.md sticky-sessions section documents the single-replica posture as the supported deployment",
+        "Multi-replica recipes provided for HAProxy (stick on Mcp-Session-Id), Nginx (sticky cookie), K8s Ingress (cookie affinity)",
+        "Operators are explicitly told to configure LB-level affinity before deploying multiple replicas"
+      ],
+      "gaps": []
+    },
+    "SDK-001": {
+      "category": "SDK",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "@asynccontextmanager lifespan in client.py:82-92 manages a shared httpx.AsyncClient",
+        "FastMCP constructor receives lifespan kwarg (server.py:135)",
+        "Cleanup in finally clears _http_client back to None",
+        "_http_get reuses the pooled client when set, falls back to per-call client when None (test-isolation friendly)"
+      ],
+      "gaps": []
+    },
+    "SDK-002": {
+      "category": "SDK",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "Tradeoff acknowledged and documented in docs/ARCHITECTURE.md — Markdown returns are the most reliable LLM-consumption format today; switching to structured returns is a breaking change deferred to v1.0",
+        "Provenance (CH-004 Quelle: line) is preserved without needing structured fields"
+      ],
+      "gaps": [
+        "Will be revisited before the 1.0 release — tracked as planned work, not a current gap"
+      ]
+    },
+    "SDK-003": {
+      "category": "SDK",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "ctx: Context | None parameter on all 6 search/get tools (server.py lines 205, 319, 385, 482, 571, 677)",
+        "ctx.warning() called in exception handlers (server.py search_resources, search_archive, search_by_type, search_education, search_persons, get_resource)",
+        "ctx.report_progress() called in eth_search_resources when limit > 50",
+        "ctx.info() called for the persons-no-results path"
+      ],
+      "gaps": []
+    },
+    "SDK-004": {
+      "category": "SDK",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "_run_http (server.py:866) wraps the Starlette app from mcp.streamable_http_app() in starlette CORSMiddleware",
+        "expose_headers=['Mcp-Session-Id'] and allow_headers includes Mcp-Session-Id + Content-Type",
+        "README cloud-deployment section warns operators to keep the server behind a reverse proxy"
+      ],
+      "gaps": []
+    },
+    "SEC-002": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "n/a",
+      "evidence": [
+        "auth_model is API-Key (operator-owned static credential), not OAuth — no token passthrough surface exists"
+      ],
+      "gaps": []
+    },
+    "SEC-003": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "docs/scope-minimization.md documents the read-only Public-Open-Data scope analysis",
+        "Future-split procedure documented for when the profile changes",
+        "Server-controlled credential, no user-delegated tokens"
+      ],
+      "gaps": []
+    },
+    "SEC-004": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "pass",
+      "evidence": [
+        "Both base URLs hardcoded https:// constants",
+        "_http_get only accepts the constant base_url + a string path argument",
+        "No url= parameter exposed in any tool input model"
+      ],
+      "gaps": []
+    },
+    "SEC-005": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "docs/ARCHITECTURE.md DNS-rebinding section documents that no user-supplied URL ever reaches httpx",
+        "Risk bounded by the egress allow-list and the constant base URLs",
+        "Re-audit trigger documented if future feature accepts URLs from tool input"
+      ],
+      "gaps": []
+    },
+    "SEC-006": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "Default __main__ behaviour is stdio (server.py:899)",
+        "HTTP transport is opt-in via --http CLI flag",
+        "Claude Desktop example config uses stdio"
+      ],
+      "gaps": []
+    },
+    "SEC-007": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "Dockerfile present with multi-stage build, slim python base, non-root UID 1000 (useradd --uid 1000)",
+        ".dockerignore excludes tests/, audits/, .git",
+        "Documented intent: run with --read-only --tmpfs /tmp and behind a reverse proxy"
+      ],
+      "gaps": []
+    },
+    "SEC-008": {
+      "category": "SEC",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": [
+        "README documents that ETH_LIBRARY_API_KEY is operator-controlled and never logged or transmitted to third parties",
+        "Read-only against Public Open Data — no user-facing consent gate required"
+      ],
+      "gaps": []
+    },
+    "SEC-009": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "n/a",
+      "evidence": [
+        "Stateless server, no per-user session model — Mcp-Session-Id binding does not apply"
+      ],
+      "gaps": []
+    },
+    "SEC-013": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "docs/secret-management.md documents Stage 1 (plain env-var) as a deliberate choice for the Public Open Data profile",
+        "Rotation procedure documented",
+        "Operational checklist with .gitignore, .env.example, no-log assertion all checked"
+      ],
+      "gaps": []
+    },
+    "SEC-016": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "pass",
+      "evidence": [
+        "Default HTTP bind is 127.0.0.1 (server.py:890)",
+        "--host opt-in required for non-loopback binding (server.py:894-895)",
+        "README explicitly warns operators not to bind 0.0.0.0 without a reverse proxy"
+      ],
+      "gaps": []
+    },
+    "SEC-018": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "Every tool consumes pydantic BaseModel with model_config = ConfigDict(extra='forbid')",
+        "Literal types enforce closed enumerations (sort, resource_type, archive)",
+        "min_length/max_length and ge/le constraints throughout"
+      ],
+      "gaps": []
+    },
+    "SEC-019": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "pass",
+      "evidence": [
+        "Server strictly read-only (HTTP GET only)",
+        "All tool annotations declare readOnlyHint=True, destructiveHint=False",
+        "No outbound-send capability — Lethal Trifecta third leg absent"
+      ],
+      "gaps": []
+    },
+    "SEC-020": {
+      "category": "SEC",
+      "severity": "critical",
+      "status": "pass",
+      "evidence": [
+        "No os.system, subprocess, shell=True, eval, exec in src/ (grep returns 0 hits)",
+        "All upstream interaction goes through httpx.AsyncClient with parameterised query",
+        "httpx performs URL-encoding via params="
+      ],
+      "gaps": []
+    },
+    "SEC-021": {
+      "category": "SEC",
+      "severity": "high",
+      "status": "pass",
+      "evidence": [
+        "ALLOWED_EGRESS_HOSTS = frozenset({'api.library.ethz.ch'}) in client.py:27",
+        "_check_egress_allowed(url) called before every HTTP request in client.py:67",
+        "docs/network-egress.md documents allow-list, threat model, and network-layer recommendation",
+        "Regression test test_egress_blocked_for_unknown_host asserts non-listed host is blocked"
+      ],
+      "gaps": []
+    }
+  }
+}
