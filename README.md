@@ -123,10 +123,21 @@ Try it immediately in Claude Desktop:
 For use via **claude.ai in the browser** (e.g. on managed workstations without local software):
 
 ```bash
-MCP_TRANSPORT=sse PORT=8000 python -m eth_library_mcp.server
+python -m eth_library_mcp.server --http --port 8000
 ```
 
-> 💡 *"stdio for the developer laptop, SSE for the browser."*
+The HTTP transport binds to `127.0.0.1` by default. To expose it on another
+interface, pass `--host` explicitly:
+
+```bash
+# Only behind a reverse-proxy / firewall that terminates TLS and enforces auth.
+python -m eth_library_mcp.server --http --host 0.0.0.0 --port 8000
+```
+
+> ⚠️ **Do not bind to `0.0.0.0` without a reverse proxy.** The server has no
+> built-in auth, rate-limiting or TLS — any LAN neighbour could call your tools.
+
+> 💡 *"stdio for the developer laptop, HTTP for the browser — behind a proxy."*
 
 ---
 
