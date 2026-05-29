@@ -767,7 +767,7 @@ async def eth_library_info() -> str:
 
     return f"""# ETH Library MCP Server
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **API-Key Status:** {key_status}
 **Basis-URL:** https://api.library.ethz.ch
 

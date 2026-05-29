@@ -17,7 +17,7 @@ def test_import_version():
     """Package exportiert __version__."""
     from eth_library_mcp import __version__
 
-    assert __version__ == "0.2.0"
+    assert __version__ == "0.3.0"
 
 
 # ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
