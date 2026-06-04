@@ -1,5 +1,7 @@
 # Contributing to eth-library-mcp
 
+🌐 **English** | **[Deutsch](CONTRIBUTING.de.md)**
+
 Thank you for your interest in contributing to **eth-library-mcp**! This server is part of the [Swiss Public Data MCP Portfolio](https://github.com/malkreide) and contributions that strengthen Swiss open-data accessibility for AI assistants are especially welcome.
 
 ---

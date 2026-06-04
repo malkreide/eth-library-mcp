@@ -25,6 +25,8 @@
 
 **7 Tools · 3 APIs · 2 Resources · 2 Prompts**
 
+**MCP-Protokollversion:** [`2025-06-18`](https://modelcontextprotocol.io/specification/) (via `mcp[cli]>=1.0.0,<2.0.0`).
+
 > ⚠️ **Bekanntes Problem (BUG-02):** Das Tool `eth_search_persons` ist aktuell nicht funktionsfähig, da der Persons-API-Endpunkt HTTP 404 zurückgibt. Die korrekte URL muss via [developer.library.ethz.ch](https://developer.library.ethz.ch) verifiziert werden. Alle anderen 6 Tools funktionieren einwandfrei.
 
 **Anker-Demo-Abfrage:** *«Finde historische Dokumente zur Schulgeschichte Zürichs in den ETH-Archiven.»*
@@ -123,10 +125,22 @@ Sofort in Claude Desktop ausprobieren:
 Für den Einsatz via **claude.ai im Browser** (z. B. auf verwalteten Arbeitsplätzen ohne lokale Software-Installation):
 
 ```bash
-MCP_TRANSPORT=sse PORT=8000 python -m eth_library_mcp.server
+python -m eth_library_mcp.server --http --port 8000
 ```
 
-> 💡 *«stdio für den Entwickler-Laptop, SSE für den Browser.»*
+Der HTTP-Transport bindet standardmässig an `127.0.0.1`. Um ihn auf einer
+anderen Schnittstelle bereitzustellen, `--host` explizit übergeben:
+
+```bash
+# Nur hinter einem Reverse-Proxy / einer Firewall, die TLS terminiert und Auth erzwingt.
+python -m eth_library_mcp.server --http --host 0.0.0.0 --port 8000
+```
+
+> ⚠️ **Nicht ohne Reverse-Proxy an `0.0.0.0` binden.** Der Server hat keine
+> eingebaute Authentifizierung, kein Rate-Limiting und kein TLS — jeder im LAN
+> könnte Ihre Tools aufrufen.
+
+> 💡 *«stdio für den Entwickler-Laptop, HTTP für den Browser — hinter einem Proxy.»*
 
 ---
 
@@ -227,7 +241,10 @@ eth-library-mcp/
 ├── tests/
 │   └── test_server.py         # Unit-Tests
 ├── CHANGELOG.md
-├── CONTRIBUTING.md
+├── CONTRIBUTING.md             # Beitragsleitfaden (Englisch)
+├── CONTRIBUTING.de.md          # Beitragsleitfaden (Deutsch)
+├── SECURITY.md                 # Sicherheitsstatus (Englisch)
+├── SECURITY.de.md              # Sicherheitsstatus (Deutsch)
 ├── LICENSE
 ├── README.md                  # Englische Hauptversion
 ├── README.de.md               # Diese Datei (Deutsch)
@@ -264,7 +281,16 @@ ETH_LIBRARY_API_KEY=xxx pytest tests/ -m "live"
 
 ## Mitwirken
 
-Beiträge sind willkommen! Siehe [CONTRIBUTING.md](CONTRIBUTING.md) für Hinweise.
+Beiträge sind willkommen! Siehe [CONTRIBUTING.de.md](CONTRIBUTING.de.md) ([English](CONTRIBUTING.md)) für Hinweise.
+
+---
+
+## Sicherheit
+
+Nur-Lese-Zugriff, keine Personendaten, ein einziger Upstream-API-Key und eine
+feste Egress-Allow-List von ETH-Bibliothek-Endpunkten. Den vollständigen
+Sicherheitsstatus und die akzeptierten Restrisiken finden Sie in
+[SECURITY.de.md](SECURITY.de.md) ([English](SECURITY.md)).
 
 ---
 
