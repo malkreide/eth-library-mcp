@@ -9,9 +9,9 @@
 [![Data Source](https://img.shields.io/badge/Data-ETH%20Library%20Zurich-red)](https://developer.library.ethz.ch)
 [![CI](https://github.com/malkreide/eth-library-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/malkreide/eth-library-mcp/actions/workflows/ci.yml)
 
-> MCP server giving AI models direct access to 30M+ resources at ETH Library Zurich – books, maps, images, archival material, and linked-data person records.
-
 🌐 **English** | **[Deutsch](README.de.md)**
+
+> MCP server giving AI models direct access to 30M+ resources at ETH Library Zurich – books, maps, images, archival material, and linked-data person records.
 
 ### Demo
 
@@ -240,7 +240,10 @@ eth-library-mcp/
 ├── tests/
 │   └── test_server.py         # Unit tests
 ├── CHANGELOG.md
-├── CONTRIBUTING.md
+├── CONTRIBUTING.md             # Contribution guide (English)
+├── CONTRIBUTING.de.md          # Contribution guide (German)
+├── SECURITY.md                 # Security posture (English)
+├── SECURITY.de.md              # Security posture (German)
 ├── LICENSE
 ├── README.md                  # This file (English)
 ├── README.de.md               # German version
@@ -277,7 +280,15 @@ ETH_LIBRARY_API_KEY=xxx pytest tests/ -m "live"
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) ([Deutsch](CONTRIBUTING.de.md)) for guidelines.
+
+---
+
+## Security
+
+Read-only, no PII, a single upstream API key, and a fixed egress allow-list of
+ETH Library endpoints. See [SECURITY.md](SECURITY.md) ([Deutsch](SECURITY.de.md))
+for the full security posture and accepted-risk decisions.
 
 ---
 
