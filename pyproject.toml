@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name        = "eth-library-mcp"
-version     = "0.3.2"
+version     = "0.3.3"
 description = "MCP Server for ETH Library Zurich — Access 30M+ resources (books, maps, images, archives) via Discovery & Persons API"
 readme      = "README.md"
 license     = { file = "LICENSE" }
