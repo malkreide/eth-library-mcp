@@ -309,3 +309,22 @@ See [CHANGELOG.md](CHANGELOG.md)
 *Powered by [Model Context Protocol](https://modelcontextprotocol.io/) • 2 APIs • 7 Tools • 2 Resources • 2 Prompts*
 
 <!-- mcp-name: io.github.malkreide/eth-library-mcp -->
+
+<!-- BEGIN GENERATED: install -->
+## Installation
+
+Run via [`uv`](https://docs.astral.sh/uv/)'s `uvx` — no clone or manual install needed. Add to your MCP client config (`mcpServers` for Claude Desktop, Cursor and Windsurf; use a top-level `servers` key for VS Code in `.vscode/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "eth-library-mcp": {
+      "command": "uvx",
+      "args": [
+        "eth-library-mcp"
+      ]
+    }
+  }
+}
+```
+<!-- END GENERATED: install -->
