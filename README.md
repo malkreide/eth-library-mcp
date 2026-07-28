@@ -306,6 +306,12 @@ See [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
+## Author
+
+**Hayal Oezkan** · [github.com/malkreide](https://github.com/malkreide)
+
+---
+
 *Powered by [Model Context Protocol](https://modelcontextprotocol.io/) • 2 APIs • 7 Tools • 2 Resources • 2 Prompts*
 
 <!-- mcp-name: io.github.malkreide/eth-library-mcp -->
