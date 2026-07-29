@@ -26,7 +26,7 @@ REQUEST_TIMEOUT = 30.0
 # cannot mutate the list at runtime. Documented in docs/network-egress.md.
 ALLOWED_EGRESS_HOSTS: frozenset[str] = frozenset({"api.library.ethz.ch"})
 
-# SDK-001: Shared httpx.AsyncClient managed by the FastMCP lifespan. When
+# SDK-001: Shared httpx.AsyncClient managed by the MCPServer lifespan. When
 # the module is imported outside a server context (e.g. unit tests), the
 # client falls back to a per-call instance.
 _http_client: httpx.AsyncClient | None = None
