@@ -223,7 +223,7 @@ async def test_search_persons_404_documented_bug02():
 
 
 async def test_library_info_no_network():
-    # eth_library_info is openWorldHint=False — it must not call upstream
+    # eth_library_info is open_world_hint=False — it must not call upstream
     out = await eth_library_info()
     assert "ETH Library MCP Server" in out
     assert "Verfügbare Tools" in out

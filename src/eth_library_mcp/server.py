@@ -19,7 +19,7 @@ Modulgrenzen (audit ARCH-004):
   client.py        — httpx, Egress-Allow-List, Lifespan
   formatting.py    — Markdown-Rendering, Persons-Parsing, Error-Mapping
   logging_config.py — strukturiertes JSON-Logging auf stderr
-  server.py        — FastMCP-Tools, Resources, Prompts (diese Datei)
+  server.py        — MCPServer-Tools, Resources, Prompts (diese Datei)
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ import os
 import sys
 from typing import Literal
 
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.mcpserver import Context, MCPServer
 from pydantic import BaseModel, ConfigDict, Field
 
 # Re-exports halten den Public-API-Pfad `eth_library_mcp.server.X` stabil.
@@ -115,7 +115,7 @@ SORT_OPTIONS = list(SortOption.__args__)  # type: ignore[attr-defined]
 
 # ─── Server-Initialisierung ───────────────────────────────────────────────────
 
-mcp = FastMCP(
+mcp = MCPServer(
     "eth_library_mcp",
     instructions=(
         "MCP Server für die ETH-Bibliothek Zürich. "
