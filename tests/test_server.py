@@ -14,10 +14,17 @@ def test_import_server():
 
 
 def test_import_version():
-    """Package exportiert __version__."""
+    """__version__ entspricht der Version der installierten Distribution.
+
+    Vorher stand hier das Literal "0.3.0" — dieselbe von Hand gepflegte Zahl,
+    die im Paket auf 0.3.3 stand. Der Test hat die Drift also nicht erkannt,
+    sondern festgeschrieben. Jetzt wird gegen die Metadaten geprüft.
+    """
+    from importlib.metadata import version
+
     from eth_library_mcp import __version__
 
-    assert __version__ == "0.3.0"
+    assert __version__ == version("eth-library-mcp")
 
 
 # ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
