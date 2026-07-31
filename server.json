@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.malkreide/eth-library-mcp",
   "description": "ETH Library Discovery and Persons APIs",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "repository": {
     "url": "https://github.com/malkreide/eth-library-mcp",
     "source": "github"
@@ -12,7 +12,7 @@
     {
       "registryType": "pypi",
       "identifier": "eth-library-mcp",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "transport": {
         "type": "stdio"
       },

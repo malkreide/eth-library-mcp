@@ -18,6 +18,12 @@ import httpx
 
 from eth_library_mcp.logging_config import get_logger
 
+from . import __version__
+
+# Wer fragt hier an? Ohne eigenen User-Agent geht der httpx-Default
+# hinaus und der Betreiber der Datenquelle sieht bloss eine Bibliothek.
+# Die Version stammt aus den Paket-Metadaten und kann nicht driften.
+USER_AGENT = f"eth-library-mcp/{__version__} (+https://github.com/malkreide/eth-library-mcp)"
 DISCOVERY_BASE_URL = "https://api.library.ethz.ch/discovery/v1"
 PERSONS_BASE_URL = "https://api.library.ethz.ch/persons/v1"
 REQUEST_TIMEOUT = 30.0
@@ -73,7 +79,7 @@ async def _http_get(
         response.raise_for_status()
         return response.json()
 
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, headers={"User-Agent": USER_AGENT}) as client:
         response = await client.get(url, params=request_params)
         response.raise_for_status()
         return response.json()
@@ -84,7 +90,7 @@ async def lifespan(_server):
     """SDK-001: pooled httpx.AsyncClient for the server's lifetime."""
     global _http_client
     log.info("server_starting", transport="any")
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, headers={"User-Agent": USER_AGENT}) as client:
         _http_client = client
         try:
             yield {}

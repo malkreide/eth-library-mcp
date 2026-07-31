@@ -5,6 +5,19 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ---
 
+## [0.3.4] – 2026-07-31
+
+### Hinzugefuegt
+
+- **Der Server nennt jetzt seinen Namen.** Bisher ging gegenueber jedem
+  Upstream der httpx-Default hinaus: der Betreiber der Datenquelle sah
+  eine Bibliothek, nicht uns, und hatte keinen Weg, uns bei Fehlverhalten
+  zu erreichen. Neu traegt jeden der 2 HTTP-Clients
+  `eth-library-mcp/<version> (+github.com/malkreide/eth-library-mcp)`.
+
+  Die Version stammt aus `importlib.metadata` und kann nicht getrennt vom
+  Paket driften.
+
 ## [0.3.0] – 2026-05-29
 
 Audit-Härtungs-Release. Über drei Remediation-Sprints wurden alle 20 Findings aus dem [mcp-audit-skill](https://github.com/malkreide/mcp-audit-skill)-Audit (run-id `2026-05-28T142641-Z-eth-library-mcp`, 38/68 Checks anwendbar) behoben. Ein Re-Audit (run-id `2026-05-28T184347-Z-eth-library-mcp`, identischer Catalog-Hash `091f446b…`) bestätigt: 36/36 anwendbare Checks PASS, 0 Findings, Production-Readiness erreicht.
