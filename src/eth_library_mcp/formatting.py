@@ -17,10 +17,7 @@ from eth_library_mcp.logging_config import get_logger
 log = get_logger(__name__)
 
 # CH-004: per-record source line appended to every formatted resource.
-SOURCE_ATTRIBUTION = (
-    "Quelle: ETH-Bibliothek (Public Domain) · "
-    "https://developer.library.ethz.ch"
-)
+SOURCE_ATTRIBUTION = "Quelle: ETH-Bibliothek (Public Domain) · https://developer.library.ethz.ch"
 
 
 def _first(lst: list[Any]) -> str:

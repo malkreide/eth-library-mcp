@@ -172,9 +172,7 @@ class SearchResourcesInput(BaseModel):
     )
     resource_type: ResourceType | None = Field(
         default=None,
-        description=(
-            f"Ressourcentyp-Filter. Mögliche Werte: {', '.join(RESOURCE_TYPES.keys())}"
-        ),
+        description=(f"Ressourcentyp-Filter. Mögliche Werte: {', '.join(RESOURCE_TYPES.keys())}"),
     )
     language: str | None = Field(
         default=None,
@@ -249,8 +247,7 @@ async def eth_search_resources(
         lines = [
             "## ETH-Bibliothek: Suchergebnisse",
             f"**Suche:** `{params.query}`  ",
-            f"**Treffer:** {total:,} total, zeige {params.offset + 1}–"
-            f"{params.offset + len(docs)}",
+            f"**Treffer:** {total:,} total, zeige {params.offset + 1}–{params.offset + len(docs)}",
             "",
         ]
 
@@ -288,8 +285,7 @@ class GetResourceInput(BaseModel):
     mmsid: str = Field(
         ...,
         description=(
-            "Alma MMS-ID der Ressource (aus Suchergebnissen). "
-            "Beispiel: '990075811280205503'"
+            "Alma MMS-ID der Ressource (aus Suchergebnissen). Beispiel: '990075811280205503'"
         ),
         min_length=5,
         max_length=50,
@@ -325,9 +321,7 @@ async def eth_get_resource(
             "avail": str(params.include_availability).lower(),
         }
 
-        data = await _http_get(
-            DISCOVERY_BASE_URL, f"/resources/{params.mmsid}", api_params
-        )
+        data = await _http_get(DISCOVERY_BASE_URL, f"/resources/{params.mmsid}", api_params)
 
         doc = data.get("docs", [{}])[0] if data.get("docs") else data
         return _format_resource_detail(doc)
@@ -402,10 +396,7 @@ async def eth_search_archive(
         total = data.get("info", {}).get("total", 0)
 
         if not docs:
-            return (
-                f"Keine Treffer im Archiv '{archive_name}' "
-                f"für Suche '{params.query}'."
-            )
+            return f"Keine Treffer im Archiv '{archive_name}' für Suche '{params.query}'."
 
         lines = [
             f"## {archive_name}",
@@ -419,9 +410,7 @@ async def eth_search_archive(
 
         if total > params.offset + len(docs):
             next_offset = params.offset + params.limit
-            lines.append(
-                f"\n*Weitere Einträge verfügbar. offset={next_offset} verwenden.*"
-            )
+            lines.append(f"\n*Weitere Einträge verfügbar. offset={next_offset} verwenden.*")
 
         lines.append("")
         lines.append(f"*{SOURCE_ATTRIBUTION}*")
@@ -446,8 +435,7 @@ class SearchByTypeInput(BaseModel):
     resource_type: ResourceType = Field(
         ...,
         description=(
-            f"Ressourcentyp. Verfügbare Typen: "
-            f"{json.dumps(RESOURCE_TYPES, ensure_ascii=False)}"
+            f"Ressourcentyp. Verfügbare Typen: {json.dumps(RESOURCE_TYPES, ensure_ascii=False)}"
         ),
     )
     query: str = Field(
@@ -509,8 +497,7 @@ async def eth_search_by_type(
         oa_label = " (Open Access)" if params.open_access_only else ""
         lines = [
             f"## ETH-Bibliothek: {type_label}{oa_label}",
-            f"**Treffer:** {total:,} total, zeige "
-            f"{params.offset + 1}–{params.offset + len(docs)}",
+            f"**Treffer:** {total:,} total, zeige {params.offset + 1}–{params.offset + len(docs)}",
             "",
         ]
 
@@ -651,8 +638,7 @@ class SearchEducationInput(BaseModel):
     resource_type: ResourceType | None = Field(
         default=None,
         description=(
-            f"Optional: Ressourcentyp-Filter. "
-            f"Mögliche Werte: {', '.join(RESOURCE_TYPES.keys())}"
+            f"Optional: Ressourcentyp-Filter. Mögliche Werte: {', '.join(RESOURCE_TYPES.keys())}"
         ),
     )
     open_access_only: bool = Field(
@@ -758,12 +744,8 @@ async def eth_library_info() -> str:
         else "⚠️ Nicht gesetzt (kostenlose Registrierung: developer.library.ethz.ch)"
     )
 
-    rt_list = "\n".join(
-        f"  - `{key}`: {label}" for key, label in RESOURCE_TYPES.items()
-    )
-    archive_list = "\n".join(
-        f"  - `{key}`: {label}" for key, label in ARCHIVE_SOURCES.items()
-    )
+    rt_list = "\n".join(f"  - `{key}`: {label}" for key, label in RESOURCE_TYPES.items())
+    archive_list = "\n".join(f"  - `{key}`: {label}" for key, label in ARCHIVE_SOURCES.items())
 
     return f"""# ETH Library MCP Server
 

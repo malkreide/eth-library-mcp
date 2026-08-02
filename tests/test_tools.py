@@ -67,9 +67,7 @@ async def test_search_resources_happy_path():
         )
     )
 
-    out = await eth_search_resources(
-        SearchResourcesInput(query="any,contains,Quantenphysik")
-    )
+    out = await eth_search_resources(SearchResourcesInput(query="any,contains,Quantenphysik"))
     assert "Quantenphysik" in out
     assert "Treffer" in out
 
@@ -115,9 +113,7 @@ async def test_search_resources_http_500_body_not_leaked():
 async def test_get_resource_happy_path():
     mmsid = "990012345678205503"
     respx.get(f"{DISCOVERY_BASE_URL}/resources/{mmsid}").mock(
-        return_value=httpx.Response(
-            200, json={"docs": [_discovery_doc("Detail-Titel")]}
-        )
+        return_value=httpx.Response(200, json={"docs": [_discovery_doc("Detail-Titel")]})
     )
 
     out = await eth_get_resource(GetResourceInput(mmsid=mmsid))
@@ -182,9 +178,7 @@ async def test_search_education_happy_path():
         )
     )
 
-    out = await eth_search_education(
-        SearchEducationInput(topic="Volksschule Zürich")
-    )
+    out = await eth_search_education(SearchEducationInput(topic="Volksschule Zürich"))
     assert "Volksschule" in out
 
 
@@ -197,9 +191,7 @@ async def test_search_persons_happy_path():
         return_value=httpx.Response(
             200,
             json={
-                "persons": [
-                    {"name": "Albert Einstein", "birthDate": "1879", "deathDate": "1955"}
-                ]
+                "persons": [{"name": "Albert Einstein", "birthDate": "1879", "deathDate": "1955"}]
             },
         )
     )
