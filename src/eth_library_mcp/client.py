@@ -49,9 +49,7 @@ def _check_egress_allowed(url: str) -> None:
     """SEC-021: Verifiziert, dass der Host in der Egress-Allow-List steht."""
     host = urlparse(url).hostname or ""
     if host not in ALLOWED_EGRESS_HOSTS:
-        raise PermissionError(
-            f"Egress denied: host {host!r} not in ALLOWED_EGRESS_HOSTS"
-        )
+        raise PermissionError(f"Egress denied: host {host!r} not in ALLOWED_EGRESS_HOSTS")
 
 
 async def _http_get(
@@ -79,7 +77,9 @@ async def _http_get(
         response.raise_for_status()
         return response.json()
 
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, headers={"User-Agent": USER_AGENT}) as client:
+    async with httpx.AsyncClient(
+        timeout=REQUEST_TIMEOUT, headers={"User-Agent": USER_AGENT}
+    ) as client:
         response = await client.get(url, params=request_params)
         response.raise_for_status()
         return response.json()
@@ -90,7 +90,9 @@ async def lifespan(_server):
     """SDK-001: pooled httpx.AsyncClient for the server's lifetime."""
     global _http_client
     log.info("server_starting", transport="any")
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, headers={"User-Agent": USER_AGENT}) as client:
+    async with httpx.AsyncClient(
+        timeout=REQUEST_TIMEOUT, headers={"User-Agent": USER_AGENT}
+    ) as client:
         _http_client = client
         try:
             yield {}
