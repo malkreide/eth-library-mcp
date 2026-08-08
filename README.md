@@ -11,7 +11,7 @@
 
 🌐 **English** | **[Deutsch](README.de.md)**
 
-> MCP server giving AI models direct access to 30M+ resources at ETH Library Zurich – books, maps, images, archival material, and linked-data person records.
+> MCP server giving AI models direct access to 30M+ resources at ETH Library Zurich – books, maps, images and archival material.
 
 ### Demo
 
@@ -21,13 +21,21 @@
 
 ## Overview
 
-**eth-library-mcp** connects AI assistants like Claude to the largest natural-science library in Switzerland. It exposes full-text search, archive-level queries, resource-type filtering, and person lookups via the ETH Library's Discovery and Persons APIs – all through a single, standardised MCP interface.
+**eth-library-mcp** connects AI assistants like Claude to the largest natural-science library in Switzerland. It exposes full-text search, archive-level queries and resource-type filtering via the ETH Library's Discovery API – all through a single, standardised MCP interface.
 
-**7 Tools · 3 APIs · 2 Resources · 2 Prompts**
+**6 Tools · 1 API · 2 Resources · 2 Prompts**
 
 **MCP Protocol Version:** [`2025-06-18`](https://modelcontextprotocol.io/specification/) (via `mcp[cli]>=1.0.0,<2.0.0`).
 
-> ⚠️ **Known issue (BUG-02):** The tool `eth_search_persons` is currently non-functional because the Persons API endpoint returns HTTP 404. The correct URL needs to be verified at [developer.library.ethz.ch](https://developer.library.ethz.ch). All other 6 tools work correctly.
+> **BUG-02 is resolved — by removing the tool.** `eth_search_persons` was documented
+> as "currently non-functional, correct URL to be verified". It has now been verified,
+> and there is no correct URL: the Persons API is **gone from the gateway**, not merely
+> locked. The gateway routes *before* it checks the API key, so an existing route
+> answers `401` and a missing one answers `404` — `/discovery/v1/resources` gives 401,
+> every `/persons/v1/*` path gives 404, and so does a deliberately invented Discovery
+> path used as a control. Offering a capability that cannot exist is the same mistake as
+> returning an empty result, only louder. The measurement is recorded and dated in
+> [`tests/fixtures/api_routes.json`](tests/fixtures/api_routes.json).
 
 **Anchor demo query:** *"Find historical documents about Zurich school history in the ETH Library archives."*
 
@@ -40,7 +48,6 @@
 - 🗂️ **Archive search** – ETH University Archives, Max Frisch, Thomas Mann, Graphische Sammlung, Bildarchiv
 - 🏷️ **Resource type filter** – books, maps, images, archival material and more
 - 🎓 **Education search** – curated workflow optimised for pedagogy and school history
-- 👤 **Person search** with linked-data enrichment (Wikidata, GND, Metagrid) *(BUG-02: currently unavailable)*
 - 📋 **Server overview** – all resource types and archives at a glance
 - 🗣️ **Built-in prompts** – structured research and education-research workflows
 - ☁️ **Dual transport** – stdio for Claude Desktop, Streamable HTTP/SSE for cloud deployment
@@ -159,7 +166,6 @@ python -m eth_library_mcp.server --http --host 0.0.0.0 --port 8000
 
 | Tool | Description |
 |---|---|
-| `eth_search_persons` | Person search with linked-data enrichment (Wikidata, GND, Metagrid) — ⚠️ BUG-02 |
 
 ### Utilities
 
@@ -260,8 +266,28 @@ eth-library-mcp/
 PYTHONPATH=src pytest tests/ -m "not live"
 
 # Integration tests (API key required)
-ETH_LIBRARY_API_KEY=xxx pytest tests/ -m "live"
+# Live checks against the gateway — these need NO API key
+PYTHONPATH=src pytest tests/ -m "live"
+
+# Re-record the route census (writes tests/fixtures/PROVENANCE.md)
+python scripts/record_fixtures.py
 ```
+
+Until 2026-08-08 this repository had **no live tests at all** — `pytest -m live`
+collected zero. Nothing in it had ever been held against the source.
+
+The Discovery payloads still cannot be recorded: the API requires a key, and
+`tests/fixtures/PROVENANCE.md` lists them explicitly as **NOT RECORDED** rather
+than giving them a date they never had. What *is* recordable is the contract the
+source gives up without a key — **which routes the gateway serves** — and that is
+exactly what the finding hangs on. The two `control_*` entries are part of the
+measurement, not decoration: without them the recording only proves that someone
+got a 404; with them it proves what the gateway distinguishes.
+
+The two live tests need no key and say something anyway: they report if the
+Persons API comes back (then the tool should return) or if Discovery loses its
+route (then five tools are affected).
+
 
 ---
 
@@ -273,7 +299,6 @@ ETH_LIBRARY_API_KEY=xxx pytest tests/ -m "live"
 - **Rate limits:** The ETH Library API enforces rate limits per API key. The server enforces a 30-second timeout per request. Use `limit` and `offset` parameters conservatively.
 - **Data freshness:** Results reflect the ETH Library catalogue at query time. No caching is performed by this server.
 - **Terms of service:** Bibliographic metadata is published as **Public Domain** — free for all uses. API access is subject to the [ETH Library Developer Portal](https://developer.library.ethz.ch) terms.
-- **Known issue (BUG-02):** `eth_search_persons` returns HTTP 404 — the Persons API endpoint URL needs verification. All other 6 tools work correctly.
 - **No guarantees:** This is a community project, not affiliated with the ETH Library or ETH Zurich. Availability depends on upstream APIs.
 
 ---
@@ -312,7 +337,7 @@ See [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
-*Powered by [Model Context Protocol](https://modelcontextprotocol.io/) • 2 APIs • 7 Tools • 2 Resources • 2 Prompts*
+*Powered by [Model Context Protocol](https://modelcontextprotocol.io/) • 1 API • 6 Tools • 2 Resources • 2 Prompts*
 
 <!-- mcp-name: io.github.malkreide/eth-library-mcp -->
 

@@ -36,7 +36,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from eth_library_mcp.client import (  # noqa: F401
     ALLOWED_EGRESS_HOSTS,
     DISCOVERY_BASE_URL,
-    PERSONS_BASE_URL,
     REQUEST_TIMEOUT,
     _check_egress_allowed,
     _get_api_key,
@@ -50,7 +49,6 @@ from eth_library_mcp.formatting import (  # noqa: F401
     _format_resource_detail,
     _format_resource_summary,
     _handle_error,
-    _parse_persons_response,
 )
 from eth_library_mcp.logging_config import configure_logging, get_logger
 
@@ -526,100 +524,6 @@ async def eth_search_by_type(
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-class SearchPersonsInput(BaseModel):
-    """Input für die Personensuche."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-
-    query: str = Field(
-        ...,
-        description=(
-            "Name oder Stichwort zur Personensuche. "
-            "Beispiele: 'Einstein', 'Einstein Albert', 'Frisch Max'"
-        ),
-        min_length=2,
-        max_length=200,
-    )
-    limit: int = Field(default=10, description="Anzahl Ergebnisse (1–50)", ge=1, le=50)
-
-
-@mcp.tool(
-    name="eth_search_persons",
-    annotations={
-        "title": "ETH-Bibliothek Personen suchen",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
-)
-async def eth_search_persons(
-    params: SearchPersonsInput,
-    ctx: Context | None = None,
-) -> str:
-    """
-    Sucht Personen in der ETH-Bibliothek Persons API.
-
-    ⚠ HINWEIS BUG-02: Der Persons-API-Endpunkt (/persons/v1/persons) gibt
-    aktuell HTTP 404 zurück. Die korrekte URL muss via developer.library.ethz.ch
-    verifiziert werden.
-    """
-    try:
-        api_params: dict = {
-            "q": params.query,
-            "limit": str(params.limit),
-        }
-
-        data = await _http_get(PERSONS_BASE_URL, "/persons", api_params)
-
-        persons = _parse_persons_response(data)
-
-        if not persons:
-            if ctx is not None:
-                await ctx.info("persons_no_results")
-            return (
-                f"Keine Personen gefunden für '{params.query}'. "
-                "Tipp: Vollständigen Namen (Nachname Vorname) versuchen."
-            )
-
-        lines = [
-            "## ETH-Bibliothek: Personen",
-            f"**Suche:** `{params.query}`  ",
-            f"**Treffer:** {len(persons)}",
-            "",
-        ]
-
-        for person in persons[: params.limit]:
-            if isinstance(person, dict):
-                name = person.get("name", person.get("label", "Unbekannt"))
-                birth = person.get("birthDate", person.get("birth", ""))
-                death = person.get("deathDate", person.get("death", ""))
-                wikidata = person.get("wikidata", person.get("wikidataUrl", ""))
-                gnd = person.get("gnd", person.get("gndId", ""))
-
-                life = f" ({birth}–{death})" if birth or death else ""
-                line = f"- **{name}**{life}"
-                if wikidata:
-                    line += f" | [Wikidata]({wikidata})"
-                if gnd:
-                    line += f" | GND: `{gnd}`"
-                lines.append(line)
-
-        lines.append("")
-        lines.append(f"*{SOURCE_ATTRIBUTION}*")
-        return "\n".join(lines)
-
-    except Exception as e:
-        if ctx is not None:
-            await ctx.warning(f"Persons-Suche fehlgeschlagen: {type(e).__name__}")
-        return _handle_error(e, f"Personensuche '{params.query}'", is_search=True)
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# TOOL 6: Schulrelevante Suche (für Schulamt-Kontext)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
 class SearchEducationInput(BaseModel):
     """Input für die schulrelevante Suche."""
 
@@ -761,7 +665,6 @@ async def eth_library_info() -> str:
 | `eth_get_resource` | Einzelne Ressource via MMS-ID abrufen |
 | `eth_search_archive` | Spezifisches Archiv durchsuchen |
 | `eth_search_by_type` | Nach Ressourcentyp filtern |
-| `eth_search_persons` | Personensuche mit Linked Data ⚠ URL-Verifikation ausstehend |
 | `eth_search_education` | Kuratierte Bildungsthemen-Suche |
 | `eth_library_info` | Diese Übersicht |
 

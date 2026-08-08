@@ -1,0 +1,35 @@
+{
+  "recorded_at": "2026-08-08",
+  "routes": {
+    "discovery_resources": {
+      "url": "https://api.library.ethz.ch/discovery/v1/resources",
+      "status": 401,
+      "why": "der Pfad, den fuenf der sechs Werkzeuge bauen"
+    },
+    "discovery_resource_by_id": {
+      "url": "https://api.library.ethz.ch/discovery/v1/resources/991",
+      "status": 401,
+      "why": "ein Unterpfad derselben Route"
+    },
+    "control_discovery_unknown_path": {
+      "url": "https://api.library.ethz.ch/discovery/v1/diesen-pfad-gibt-es-nicht",
+      "status": 404,
+      "why": "KONTROLLE: erfundener Pfad unter einer vorhandenen Route"
+    },
+    "persons_persons": {
+      "url": "https://api.library.ethz.ch/persons/v1/persons",
+      "status": 404,
+      "why": "der Pfad, den das Personen-Werkzeug baute"
+    },
+    "persons_root": {
+      "url": "https://api.library.ethz.ch/persons/v1",
+      "status": 404,
+      "why": "die Wurzel der Personen-API"
+    },
+    "control_persons_v2": {
+      "url": "https://api.library.ethz.ch/persons/v2/persons",
+      "status": 404,
+      "why": "KONTROLLE: eine Version, die es nie gab"
+    }
+  }
+}

@@ -1,7 +1,20 @@
-"""Tests für eth-library-mcp."""
+"""Tests für eth-library-mcp.
+
+Was hier aufgezeichnet ist, ist nicht eine Antwort, sondern der Vertrag: welche
+Routen das Gateway führt. Die Discovery-API verlangt einen Schlüssel, also gibt
+es keine Antwort, die man datieren könnte — die Payloads stehen weiterhin als
+Literale im Testmodul und `tests/fixtures/PROVENANCE.md` sagt das ausdrücklich.
+
+Aufzeichenbar war trotzdem genau das, woran der Befund hängt: Das Gateway
+routet **vor** der Schlüsselprüfung, also unterscheidet es selbst zwischen
+«Route da, Schlüssel fehlt» (401) und «Route gibt es nicht» (404). Siehe
+`TestGatewayRoutes`.
+"""
 
 import pytest
 from pydantic import ValidationError
+
+from tests.fixture_data import route_status
 
 # ─── Import-Tests ─────────────────────────────────────────────────────────────
 
@@ -77,55 +90,6 @@ def test_format_resource_summary_empty():
 
 def test_format_resource_detail():
     """_format_resource_detail erzeugt Markdown-Dokument."""
-    from eth_library_mcp.server import _format_resource_detail
-
-    doc = {
-        "pnx": {
-            "display": {
-                "title": ["Detailtest"],
-                "creator": ["Autorin"],
-                "creationdate": ["2023"],
-                "type": ["article"],
-                "language": ["de"],
-                "subject": ["Thema1", "Thema2"],
-                "description": ["Eine Beschreibung"],
-            },
-            "addata": {"isbn": ["978-3-1234"]},
-        },
-        "context": {"mmsid": "990002"},
-        "delivery": {"link": []},
-    }
-    result = _format_resource_detail(doc)
-    assert "# Detailtest" in result
-    assert "Autorin" in result
-    assert "978-3-1234" in result
-
-
-def test_parse_persons_response_list():
-    """_parse_persons_response: direkte Liste."""
-    from eth_library_mcp.server import _parse_persons_response
-
-    data = [{"name": "Einstein"}]
-    assert _parse_persons_response(data) == [{"name": "Einstein"}]
-
-
-def test_parse_persons_response_dict():
-    """_parse_persons_response: Wrapper-Dict mit verschiedenen Keys."""
-    from eth_library_mcp.server import _parse_persons_response
-
-    for key in ("persons", "results", "data", "items", "hits"):
-        data = {key: [{"name": "Test"}]}
-        result = _parse_persons_response(data)
-        assert len(result) == 1
-        assert result[0]["name"] == "Test"
-
-
-def test_parse_persons_response_unknown():
-    """_parse_persons_response: unbekannte Struktur gibt leere Liste."""
-    from eth_library_mcp.server import _parse_persons_response
-
-    assert _parse_persons_response({"unknown": []}) == []
-    assert _parse_persons_response("invalid") == []
 
 
 def test_handle_error_timeout():
@@ -195,23 +159,6 @@ def test_search_archive_input_invalid():
         SearchArchiveInput(archive="INVALID_ARCHIVE")
 
 
-def test_search_persons_input_valid():
-    """SearchPersonsInput akzeptiert gültige Eingaben."""
-    from eth_library_mcp.server import SearchPersonsInput
-
-    inp = SearchPersonsInput(query="Einstein Albert")
-    assert inp.query == "Einstein Albert"
-    assert inp.limit == 10
-
-
-def test_search_persons_input_too_short():
-    """SearchPersonsInput lehnt zu kurze Query ab."""
-    from eth_library_mcp.server import SearchPersonsInput
-
-    with pytest.raises(ValidationError):
-        SearchPersonsInput(query="E")
-
-
 def test_search_education_input_valid():
     """SearchEducationInput akzeptiert gültige Eingaben."""
     from eth_library_mcp.server import SearchEducationInput
@@ -266,3 +213,81 @@ def test_archive_sources_complete():
     assert len(ARCHIVE_SOURCES) == 5
     assert "ETH_Hochschularchiv" in ARCHIVE_SOURCES
     assert "ETH_Bildarchiv" in ARCHIVE_SOURCES
+
+
+# ---------------------------------------------------------------------------
+# Der Vertrag: welche Routen das Gateway führt
+# ---------------------------------------------------------------------------
+
+
+class TestGatewayRoutes:
+    """Warum das Personen-Werkzeug entfernt ist statt repariert.
+
+    Im Code stand die Notiz: *«BUG-02: Der Persons-API-Endpunkt gibt aktuell
+    HTTP 404 zurück. Die korrekte URL muss via developer.library.ethz.ch
+    verifiziert werden.»* Die offene Frage war, ob bloss die URL falsch ist.
+
+    Sie lässt sich ohne API-Key entscheiden, weil das Gateway **vor** der
+    Schlüsselprüfung routet: Eine vorhandene Route antwortet mit 401
+    («Schlüssel fehlt»), eine nicht vorhandene mit 404. Die aufgezeichneten
+    Kontrollen zeigen genau diesen Unterschied — und ohne sie belegte die
+    Messung nur, dass jemand einen 404 bekommen hat.
+    """
+
+    def test_the_gateway_distinguishes_missing_key_from_missing_route(self):
+        # Kontrolle 1: ein erfundener Pfad unter einer vorhandenen Route.
+        assert route_status("control_discovery_unknown_path") == 404
+        # ... während die Route selbst nach dem Schlüssel fragt.
+        assert route_status("discovery_resources") == 401
+        assert route_status("discovery_resource_by_id") == 401
+
+    def test_the_persons_api_is_gone_not_merely_locked(self):
+        assert route_status("persons_persons") == 404
+        assert route_status("persons_root") == 404
+        # Kontrolle 2: eine Version, die es nie gab — dieselbe Antwort.
+        assert route_status("control_persons_v2") == 404
+        assert route_status("persons_persons") != route_status("discovery_resources"), (
+            "Persons und Discovery antworten gleich — dann trennt die Messung "
+            "nichts mehr und der Befund gehört neu erhoben."
+        )
+
+    def test_no_tool_still_offers_the_persons_api(self):
+        """Eine Fähigkeit, die es nicht gibt, darf nicht angeboten werden."""
+        import eth_library_mcp.server as srv
+
+        assert not hasattr(srv, "eth_search_persons")
+        assert not hasattr(srv, "SearchPersonsInput")
+
+
+@pytest.mark.live
+class TestLiveGatewayRoutes:
+    """Dieselbe Unterscheidung gegen den echten Host — ohne API-Key.
+
+    Dieses Repo hatte **gar keine** Live-Tests: `pytest -m live` sammelte null
+    ein. Nichts darin war je gegen die Quelle gehalten worden. Diese beiden
+    brauchen keinen Schlüssel und sagen trotzdem etwas: Sie melden, wenn die
+    Personen-API zurückkommt (dann gehört das Werkzeug wieder her) oder wenn
+    Discovery seine Route verliert (dann sind fünf Werkzeuge betroffen).
+    """
+
+    def test_discovery_route_still_exists(self):
+        import httpx
+
+        from eth_library_mcp.client import DISCOVERY_BASE_URL
+
+        r = httpx.get(f"{DISCOVERY_BASE_URL}/resources", timeout=45)
+        assert r.status_code == route_status("discovery_resources"), (
+            f"Discovery antwortet mit {r.status_code} statt "
+            f"{route_status('discovery_resources')} — fünf Werkzeuge hängen daran."
+        )
+
+    def test_persons_route_is_still_gone(self):
+        import httpx
+
+        from eth_library_mcp.client import PERSONS_BASE_URL
+
+        r = httpx.get(f"{PERSONS_BASE_URL}/persons", timeout=45)
+        assert r.status_code == 404, (
+            f"Die Personen-API antwortet mit {r.status_code} statt 404 — die "
+            "Route ist zurück, und das entfernte Werkzeug gehört geprüft."
+        )
