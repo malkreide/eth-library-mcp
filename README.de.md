@@ -11,7 +11,7 @@
 
 🌐 **[English](README.md)** | **Deutsch**
 
-> MCP-Server, der KI-Modellen direkten Zugriff auf 30+ Millionen Ressourcen der ETH-Bibliothek Zürich gibt – Bücher, Karten, Bilder, Archivmaterial und Linked-Data-Personeneinträge.
+> MCP-Server, der KI-Modellen direkten Zugriff auf 30+ Millionen Ressourcen der ETH-Bibliothek Zürich gibt – Bücher, Karten, Bilder und Archivmaterial.
 
 ### Demo
 
@@ -21,13 +21,21 @@
 
 ## Übersicht
 
-**eth-library-mcp** verbindet KI-Assistenten wie Claude mit der grössten naturwissenschaftlichen Bibliothek der Schweiz. Der Server erschliesst Volltextsuche, archivspezifische Abfragen, Ressourcentyp-Filterung und Personensuche über die Discovery- und Persons-APIs der ETH-Bibliothek – alles über eine einzige, standardisierte MCP-Schnittstelle.
+**eth-library-mcp** verbindet KI-Assistenten wie Claude mit der grössten naturwissenschaftlichen Bibliothek der Schweiz. Der Server erschliesst Volltextsuche, archivspezifische Abfragen und Ressourcentyp-Filterung über die Discovery-API der ETH-Bibliothek – alles über eine einzige, standardisierte MCP-Schnittstelle.
 
-**7 Tools · 3 APIs · 2 Resources · 2 Prompts**
+**6 Tools · 1 API · 2 Resources · 2 Prompts**
 
 **MCP-Protokollversion:** [`2025-06-18`](https://modelcontextprotocol.io/specification/) (via `mcp[cli]>=1.0.0,<2.0.0`).
 
-> ⚠️ **Bekanntes Problem (BUG-02):** Das Tool `eth_search_persons` ist aktuell nicht funktionsfähig, da der Persons-API-Endpunkt HTTP 404 zurückgibt. Die korrekte URL muss via [developer.library.ethz.ch](https://developer.library.ethz.ch) verifiziert werden. Alle anderen 6 Tools funktionieren einwandfrei.
+> **BUG-02 ist erledigt — durch Entfernen des Werkzeugs.** `eth_search_persons` stand
+> als «aktuell nicht funktionsfähig, korrekte URL zu verifizieren» im README. Verifiziert
+> ist sie jetzt, und es gibt keine korrekte URL: Die Persons-API ist **weg vom Gateway**,
+> nicht bloss verschlossen. Das Gateway routet *vor* der Schlüsselprüfung, also antwortet
+> eine vorhandene Route mit `401` und eine fehlende mit `404` — `/discovery/v1/resources`
+> gibt 401, jeder `/persons/v1/*`-Pfad gibt 404, und ein absichtlich erfundener
+> Discovery-Pfad als Kontrolle ebenfalls. Eine Fähigkeit anzubieten, die es nicht geben
+> kann, ist derselbe Fehler wie ein leeres Ergebnis, nur lauter. Die Messung liegt datiert
+> in [`tests/fixtures/api_routes.json`](tests/fixtures/api_routes.json).
 
 **Anker-Demo-Abfrage:** *«Finde historische Dokumente zur Schulgeschichte Zürichs in den ETH-Archiven.»*
 
@@ -40,7 +48,6 @@
 - 🗂️ **Archivsuche** – ETH Hochschularchiv, Max Frisch, Thomas Mann, Graphische Sammlung, Bildarchiv
 - 🏷️ **Ressourcentyp-Filter** – Bücher, Karten, Bilder, Archivmaterial und mehr
 - 🎓 **Bildungssuche** – kuratierter Workflow für Pädagogik und Schulgeschichte
-- 👤 **Personensuche** mit Linked-Data-Anreicherung (Wikidata, GND, Metagrid) *(BUG-02: derzeit nicht verfügbar)*
 - 📋 **Server-Übersicht** – alle Ressourcentypen und Archive auf einen Blick
 - 🗣️ **Eingebaute Prompts** – strukturierter Recherche- und Bildungsrecherche-Workflow
 - ☁️ **Dual Transport** – stdio für Claude Desktop, Streamable HTTP/SSE für Cloud-Deployment
@@ -160,7 +167,6 @@ python -m eth_library_mcp.server --http --host 0.0.0.0 --port 8000
 
 | Tool | Beschreibung |
 |---|---|
-| `eth_search_persons` | Personensuche mit Linked-Data-Anreicherung (Wikidata, GND, Metagrid) — ⚠️ BUG-02 |
 
 ### Hilfsmittel
 
@@ -261,8 +267,29 @@ eth-library-mcp/
 PYTHONPATH=src pytest tests/ -m "not live"
 
 # Integrationstests (API-Key erforderlich)
-ETH_LIBRARY_API_KEY=xxx pytest tests/ -m "live"
+# Live-Prüfungen gegen das Gateway — dafür braucht es KEINEN API-Key
+PYTHONPATH=src pytest tests/ -m "live"
+
+# Routen-Erhebung neu aufzeichnen (schreibt tests/fixtures/PROVENANCE.md)
+python scripts/record_fixtures.py
 ```
+
+Bis zum 2026-08-08 hatte dieses Repository **gar keine Live-Tests** — `pytest -m
+live` sammelte null ein. Nichts darin war je gegen die Quelle gehalten worden.
+
+Die Discovery-Payloads bleiben nicht aufzeichenbar: Die API verlangt einen
+Schlüssel, und `tests/fixtures/PROVENANCE.md` führt sie ausdrücklich als **NICHT
+aufgezeichnet**, statt ihnen ein Datum anzuschreiben, das sie nie hatten.
+Aufzeichenbar ist der Vertrag, den die Quelle auch ohne Schlüssel preisgibt —
+**welche Routen das Gateway führt** —, und genau daran hängt der Befund. Die
+beiden `control_*`-Zeilen gehören zur Messung und sind kein Beiwerk: Ohne sie
+belegt die Aufzeichnung nur, dass jemand einen 404 bekommen hat; mit ihnen
+belegt sie, was das Gateway unterscheidet.
+
+Die zwei Live-Tests brauchen keinen Schlüssel und sagen trotzdem etwas: Sie
+melden, wenn die Personen-API zurückkommt (dann gehört das Werkzeug wieder her)
+oder wenn Discovery seine Route verliert (dann sind fünf Werkzeuge betroffen).
+
 
 ---
 
@@ -274,7 +301,6 @@ ETH_LIBRARY_API_KEY=xxx pytest tests/ -m "live"
 - **Rate Limits:** Die ETH-Bibliothek-API erzwingt Rate Limits pro API-Key. Der Server erzwingt ein 30-Sekunden-Timeout pro Anfrage. `limit`- und `offset`-Parameter konservativ einsetzen.
 - **Datenaktualität:** Ergebnisse spiegeln den ETH-Bibliothekskatalog zum Abfragezeitpunkt wider. Dieser Server nimmt kein Caching vor.
 - **Nutzungsbedingungen:** Bibliografische Metadaten sind als **Public Domain** publiziert — frei nutzbar ohne Einschränkungen. Der API-Zugang unterliegt den Bedingungen des [ETH Library Developer Portals](https://developer.library.ethz.ch).
-- **Bekanntes Problem (BUG-02):** `eth_search_persons` gibt HTTP 404 zurück — die Persons-API-Endpunkt-URL muss verifiziert werden. Alle anderen 6 Tools funktionieren einwandfrei.
 - **Keine Gewähr:** Dieses Projekt ist eine Community-Initiative ohne Verbindung zur ETH-Bibliothek oder ETH Zürich. Verfügbarkeit hängt von den vorgelagerten APIs ab.
 
 ---
@@ -314,4 +340,4 @@ Siehe [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
-*Powered by [Model Context Protocol](https://modelcontextprotocol.io/) • 2 APIs • 7 Tools • 2 Resources • 2 Prompts*
+*Powered by [Model Context Protocol](https://modelcontextprotocol.io/) • 1 API • 6 Tools • 2 Resources • 2 Prompts*

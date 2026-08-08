@@ -5,6 +5,78 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Behoben — BUG-02 ist erledigt, durch Entfernen des Werkzeugs
+
+Im Code und in beiden READMEs stand seit laengerem dieselbe Notiz:
+
+> ⚠ BUG-02: Der Persons-API-Endpunkt (`/persons/v1/persons`) gibt aktuell HTTP
+> 404 zurueck. Die korrekte URL muss via `developer.library.ethz.ch`
+> verifiziert werden.
+
+Verifiziert ist sie jetzt, und **es gibt keine korrekte URL**. Die Persons-API
+ist vom Gateway verschwunden, nicht bloss verschlossen.
+
+Entscheiden laesst sich das ohne API-Key, weil das Gateway **vor** der
+Schluesselpruefung routet:
+
+| Pfad | Antwort ohne Key | heisst |
+|---|---|---|
+| `/discovery/v1/resources` | **401** | Route da, Schluessel fehlt |
+| `/discovery/v1/resources/991` | **401** | auch Unterpfade |
+| `/discovery/v1/<erfunden>` — KONTROLLE | **404** | Route nicht da |
+| `/persons/v1/persons` | **404** | |
+| `/persons/v1` | **404** | |
+| `/persons/v2/persons` — KONTROLLE | **404** | |
+
+Die beiden Kontrollzeilen sind der ganze Punkt. Ohne sie belegt die Messung
+nur, dass jemand einen 404 bekommen hat — mit ihnen belegt sie, was das Gateway
+unterscheidet. Genau diesen Unterschied, die eigene Adressliste gegen den
+Bestand der Quelle, hat dieses Portfolio schon zweimal verwechselt.
+
+`eth_search_persons` ist deshalb **entfernt** und nicht mit einer schoeneren
+Fehlermeldung versehen worden. Eine Faehigkeit anzubieten, die es nicht geben
+kann, ist derselbe Fehler wie ein leeres Ergebnis, nur lauter — und das Werkzeug
+stand mit Warnhinweis in der Werkzeugliste, also dort, wo ein Modell zuerst
+hinsieht. Mit ihm fallen `SearchPersonsInput`, der Persons-Parser-Aufruf und die
+Zaehlung «7 Tools · 3 APIs» weg, die auf beiden READMEs stand. Es sind sechs
+Werkzeuge und eine API.
+
+### Hinzugefuegt — aufgezeichnet wird der Vertrag, nicht die Antwort
+
+**`scripts/record_fixtures.py`** zeichnet auf, was ohne Schluessel aufzeichenbar
+ist: die Routen-Erhebung samt Kontrollen, mit Datum und SHA-256 in
+`tests/fixtures/PROVENANCE.md`.
+
+Die Discovery-Payloads bleiben **NICHT aufgezeichnet** — die API verlangt einen
+Schluessel, und ein Datum anzuschreiben, das sie nie hatten, waere schlimmer als
+die Luecke. Die 401 ist dabei am Pfad des Servers selbst gemessen, nicht an
+einem benachbarten, und die Kontrollen zeigen, dass sie «Schluessel fehlt»
+heisst und nicht «Route weg».
+
+Das Skript bricht ab, wenn die Unterscheidung nicht mehr traegt: wenn Discovery
+nicht mehr mit 401 antwortet, wenn ein erfundener Pfad nicht mehr 404 gibt, oder
+wenn die Personen-API zurueckkommt — im letzten Fall gehoert das Werkzeug
+wiederhergestellt und nicht die Fixture nachgezogen.
+
+**`tests/fixture_data.py`** behandelt einen fehlenden Namen als Fehler statt als
+leere Struktur.
+
+### Hinzugefuegt — die ersten Live-Tests dieses Repositoriums
+
+`pytest -m live` sammelte hier bisher **null** Tests ein. Nichts in diesem Repo
+war je gegen die Quelle gehalten worden — bei 11 Inline-Payloads, dem groessten
+Wert der unteren Haelfte der Portfolio-Rangfolge.
+
+Die zwei neuen Live-Tests brauchen **keinen** API-Key und sagen trotzdem etwas:
+Sie melden, wenn die Personen-API zurueckkommt (dann gehoert das Werkzeug wieder
+her) und wenn Discovery seine Route verliert (dann sind fuenf Werkzeuge
+betroffen). Ein Live-Test, der nur mit Zugangsdaten laeuft, laeuft in der Praxis
+nie.
+
+---
+
 ## [0.3.4] – 2026-07-31
 
 ### Hinzugefuegt

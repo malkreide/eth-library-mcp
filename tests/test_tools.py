@@ -16,19 +16,16 @@ import respx
 
 from eth_library_mcp.server import (
     DISCOVERY_BASE_URL,
-    PERSONS_BASE_URL,
     GetResourceInput,
     SearchArchiveInput,
     SearchByTypeInput,
     SearchEducationInput,
-    SearchPersonsInput,
     SearchResourcesInput,
     eth_get_resource,
     eth_library_info,
     eth_search_archive,
     eth_search_by_type,
     eth_search_education,
-    eth_search_persons,
     eth_search_resources,
 )
 
@@ -180,35 +177,6 @@ async def test_search_education_happy_path():
 
     out = await eth_search_education(SearchEducationInput(topic="Volksschule Zürich"))
     assert "Volksschule" in out
-
-
-# ─── eth_search_persons ──────────────────────────────────────────────────────
-
-
-@respx.mock
-async def test_search_persons_happy_path():
-    respx.get(f"{PERSONS_BASE_URL}/persons").mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "persons": [{"name": "Albert Einstein", "birthDate": "1879", "deathDate": "1955"}]
-            },
-        )
-    )
-
-    out = await eth_search_persons(SearchPersonsInput(query="Einstein"))
-    assert "Einstein" in out
-
-
-@respx.mock
-async def test_search_persons_404_documented_bug02():
-    # BUG-02: the live persons endpoint currently returns 404
-    respx.get(f"{PERSONS_BASE_URL}/persons").mock(
-        return_value=httpx.Response(404, text="not found")
-    )
-
-    out = await eth_search_persons(SearchPersonsInput(query="Einstein"))
-    assert "Endpunkt nicht gefunden" in out or "Keine Ergebnisse" in out
 
 
 # ─── eth_library_info ────────────────────────────────────────────────────────
