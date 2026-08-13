@@ -69,13 +69,22 @@ Matrix: Python 3.11, 3.12, 3.13. Trigger: Push und PR auf `main`.
 
 ### Live-Tests
 
-**Befund DRIFT-005:** Es gibt keinen geplanten Live-Test-Workflow.
-`.github/workflows/` enthält nur `ci.yml` und `publish.yml`, keiner mit
-`schedule`/`cron`-Trigger. Live-Tests sind ausschliesslich per
-`-m "not live"` aus der CI ausgeschlossen — es existiert genau ein
-`@pytest.mark.live` (`tests/test_server.py:262`), der nie automatisch läuft.
-Ein Bruch der ETH-Library-API fällt damit erst auf, wenn ihn jemand von Hand
-sucht. 5 von 10 geprüften Servern des Portfolios verletzen DRIFT-005 ebenso.
+Die CI schliesst sie per `-m "not live"` aus; gefahren werden sie täglich
+06:17 UTC von `.github/workflows/live-tests.yml` (cron, dazu
+`workflow_dispatch` von Hand). Ein roter Lauf öffnet ein Issue mit Label
+`live-test-failure` — oder kommentiert das offene, statt ein zweites
+aufzumachen. Damit ist DRIFT-005 geschlossen; 5 von 10 geprüften Servern des
+Portfolios verletzen ihn weiterhin.
+
+Der Workflow bricht ab, wenn `pytest -m live` **null** Tests einsammelt
+(Exit-Code 5). Ein grüner Lauf ohne Tests sieht wie Abdeckung aus und ist
+schlimmer als kein Lauf — so fing dieses Repo an.
+
+Beide Live-Tests brauchen keinen API-Key: sie messen, welche Routen das
+Gateway führt (401 = Route da, Schlüssel fehlt; 404 = Route weg). Wer eine
+Zusicherung ergänzt, die einen Schlüssel braucht, muss vorher
+`ETH_LIBRARY_API_KEY` als Secret hinterlegen — sonst wird der Lauf rot,
+ohne dass die Quelle etwas dafür kann.
 
 Fixture-Herkunft und was bewusst *nicht* aufgezeichnet ist:
 `tests/fixtures/PROVENANCE.md` (Stand 2026-08-08).
