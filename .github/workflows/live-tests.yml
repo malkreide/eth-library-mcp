@@ -1,0 +1,95 @@
+name: Live-Tests
+
+# Die Unit-Tests laufen gegen aufgezeichnete Antworten und bleiben gruen,
+# wenn sich die Quelle aendert. Genau das ist am 3.8.2026 im Portfolio
+# passiert: vier von sechs Datensaetzen produktiv kaputt, alle Unit-Tests
+# gruen. Dieser Lauf haelt die Zusicherungen gegen api.library.ethz.ch.
+#
+# Die beiden Live-Tests brauchen keinen API-Key: sie messen, welche Routen
+# das Gateway fuehrt (401 = Route da, Schluessel fehlt; 404 = Route weg).
+# Deshalb laeuft dieser Workflow ohne Secret.
+
+on:
+  schedule:
+    # Taeglich 06:17 UTC. Nicht zur vollen Stunde: dann ist die Warteschlange
+    # von GitHub am laengsten und der Lauf verschiebt sich unvorhersehbar.
+    - cron: "17 6 * * *"
+  # Damit die Aenderung an diesem Workflow pruefbar ist, ohne einen Tag zu
+  # warten - geplante Laeufe starten ausserdem nur vom Default-Branch.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write # nur fuer das Issue, das ein roter Lauf aufmacht
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Eine Version genuegt. Geprueft wird ein Netz-Vertrag, kein Verhalten,
+      # das sich zwischen 3.11 und 3.13 unterscheiden koennte.
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Run live tests
+        run: |
+          set +e
+          PYTHONPATH=src pytest tests/ -m live | tee live-tests.log
+          code=${PIPESTATUS[0]}
+          set -e
+
+          # Exit-Code 5 heisst: nichts eingesammelt. Ein Lauf, der null Tests
+          # faehrt und gruen meldet, ist schlimmer als kein Lauf - er sieht
+          # wie Abdeckung aus. Genau so fing dieses Repo an.
+          if [ "$code" -eq 5 ]; then
+            echo "::error::'pytest -m live' hat null Tests eingesammelt. Der Lauf sagt damit nichts ueber die Quelle aus."
+            exit 1
+          fi
+          exit "$code"
+
+      - name: Bei Rot ein Issue oeffnen oder ergaenzen
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create live-test-failure \
+            --color B60205 \
+            --description "Ein geplanter Live-Test gegen api.library.ethz.ch ist rot." \
+            --force
+
+          {
+            echo "Der geplante Live-Test-Lauf ist rot: $RUN_URL"
+            echo
+            echo "**Erst die Quelle abfragen, dann einordnen.** Nicht aus der"
+            echo "Fehlermeldung schliessen: «nicht gefunden» hiess in diesem"
+            echo "Portfolio schon einmal nicht, dass der Datensatz weg war,"
+            echo "sondern dass die Quelle ihre Kopfzeile umbenannt hatte."
+            echo
+            echo "Was gemessen wurde:"
+            echo
+            echo '```'
+            tail -c 4000 live-tests.log 2>/dev/null || echo "(keine Ausgabe aufgezeichnet)"
+            echo '```'
+          } > issue-body.md
+
+          offen=$(gh issue list --label live-test-failure --state open --limit 1 --json number --jq '.[0].number // empty')
+
+          if [ -n "$offen" ]; then
+            gh issue comment "$offen" --body-file issue-body.md
+          else
+            gh issue create \
+              --title "Live-Test rot ($(date -u +%F)): api.library.ethz.ch" \
+              --label live-test-failure \
+              --body-file issue-body.md
+          fi
