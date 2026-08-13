@@ -1,0 +1,83 @@
+# CLAUDE.md
+
+## Teil 1 — Portfolio-Konventionen
+
+### Vor der Arbeit
+
+Klon-Aktualität prüfen: `git fetch origin main && git rev-list --count HEAD..origin/main`
+Ein veralteter Klon erzeugt eine rote CI, deren Ursache nicht im Diff steht.
+Am 3.8.2026 zweimal passiert — beide Male fehlten genau die Commits, die
+das Gate einführten, an dem der Branch scheiterte.
+
+Gates lokal fahren, mit der GEPINNTEN ruff-Version aus der CI. Eine andere
+Version meldet Abweichungen, die niemand verursacht hat.
+
+### Tests
+
+Gegenprobe ist Pflicht. Ein Test, der grün bleibt, wenn man die
+Implementierung entfernt, prüft nichts. Jede neue Zusicherung einzeln
+neutralisieren und zeigen, dass genau die zugehörigen Tests fallen.
+
+Zwei Fallen, die beide grün blieben:
+
+- Eine Fake-Uhr, die nur beim Schlafen vorrückt, kann eine Zusicherung über
+  echte Zeit nicht widerlegen.
+- `monkeypatch.setattr(modul.asyncio, "sleep", ...)` greift ins Modul
+  `asyncio` selbst und entschärft die Mechanik im ganzen Prozess. Patche
+  einen Modul-Alias (`_sleep = asyncio.sleep`), nicht das fremde Modul.
+
+Handgeschriebene Fixtures kodieren die Annahme des Autors und können sie
+nicht widerlegen. Mindestens eine aufgezeichnete Antwort pro externem
+Endpunkt, mit Aufnahmedatum.
+
+### Wenn etwas rot ist
+
+Roter Live-Test: erst die Quelle abfragen, dann einordnen. Nicht aus der
+Fehlermeldung schliessen. Am 3.8.2026 hiess «nicht gefunden» nicht, dass der
+Datensatz weg war, sondern dass die Quelle die Schreibweise ihrer Kopfzeile
+gewechselt hatte — vier von sechs Datensätzen produktiv kaputt, alle
+Unit-Tests grün.
+
+PR ohne jeden Check ist selten ein Repo ohne CI, meistens ein
+Merge-Konflikt: GitHub berechnet dafür keinen Merge-Commit und startet nichts.
+
+Ein Codex-Review auf einem PR wird beantwortet oder behoben, nie ignoriert.
+
+## Teil 2 — Dieses Repo
+
+### ruff-Version
+
+**`ruff==0.16.1`**, gepinnt in `.github/workflows/ci.yml`. Keine
+`.pre-commit-config.yaml` vorhanden — der Pin existiert also nur einmal.
+
+**Befund:** `pyproject.toml` liefert im `dev`-Extra `ruff>=0.4.0,<1.0.0`.
+Wer `pip install -e ".[dev]"` fährt, bekommt die jeweils neueste 0.x und
+damit lokal eine andere ruff-Version als die CI. Der `pip install
+ruff==0.16.1`-Schritt der CI überschreibt das dort; lokal überschreibt ihn
+niemand. Deshalb unten der explizite Zweitbefehl.
+
+### Gate-Befehle (wörtlich aus `ci.yml`, in dieser Reihenfolge)
+
+```bash
+pip install -e ".[dev]"
+PYTHONPATH=src pytest tests/ -m "not live"
+pip install ruff==0.16.1          # NACH dem dev-Install, sonst falsche Version
+ruff check src/ tests/ scripts/
+ruff format --check src/ tests/ scripts/
+python scripts/check_version_sync.py
+```
+
+Matrix: Python 3.11, 3.12, 3.13. Trigger: Push und PR auf `main`.
+
+### Live-Tests
+
+**Befund DRIFT-005:** Es gibt keinen geplanten Live-Test-Workflow.
+`.github/workflows/` enthält nur `ci.yml` und `publish.yml`, keiner mit
+`schedule`/`cron`-Trigger. Live-Tests sind ausschliesslich per
+`-m "not live"` aus der CI ausgeschlossen — es existiert genau ein
+`@pytest.mark.live` (`tests/test_server.py:262`), der nie automatisch läuft.
+Ein Bruch der ETH-Library-API fällt damit erst auf, wenn ihn jemand von Hand
+sucht. 5 von 10 geprüften Servern des Portfolios verletzen DRIFT-005 ebenso.
+
+Fixture-Herkunft und was bewusst *nicht* aufgezeichnet ist:
+`tests/fixtures/PROVENANCE.md` (Stand 2026-08-08).
