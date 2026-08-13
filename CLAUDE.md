@@ -47,21 +47,21 @@ Ein Codex-Review auf einem PR wird beantwortet oder behoben, nie ignoriert.
 
 ### ruff-Version
 
-**`ruff==0.16.1`**, gepinnt in `.github/workflows/ci.yml`. Keine
-`.pre-commit-config.yaml` vorhanden — der Pin existiert also nur einmal.
+**`ruff==0.16.1`.** Der Pin steht an zwei Stellen und muss an beiden
+zugleich geändert werden: im `dev`-Extra von `pyproject.toml` und im
+Schritt «Install pinned ruff» in `.github/workflows/ci.yml`. Eine
+`.pre-commit-config.yaml` gibt es nicht.
 
-**Befund:** `pyproject.toml` liefert im `dev`-Extra `ruff>=0.4.0,<1.0.0`.
-Wer `pip install -e ".[dev]"` fährt, bekommt die jeweils neueste 0.x und
-damit lokal eine andere ruff-Version als die CI. Der `pip install
-ruff==0.16.1`-Schritt der CI überschreibt das dort; lokal überschreibt ihn
-niemand. Deshalb unten der explizite Zweitbefehl.
+`pip install -e ".[dev]"` liefert seit dieser Pinnung dieselbe ruff-Version
+wie die CI; der Zweitbefehl unten ist damit eine Bestätigung, keine
+Korrektur mehr.
 
 ### Gate-Befehle (wörtlich aus `ci.yml`, in dieser Reihenfolge)
 
 ```bash
 pip install -e ".[dev]"
 PYTHONPATH=src pytest tests/ -m "not live"
-pip install ruff==0.16.1          # NACH dem dev-Install, sonst falsche Version
+pip install ruff==0.16.1          # deckungsgleich mit dem dev-Extra
 ruff check src/ tests/ scripts/
 ruff format --check src/ tests/ scripts/
 python scripts/check_version_sync.py
