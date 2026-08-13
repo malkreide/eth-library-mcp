@@ -80,6 +80,13 @@ Der Workflow bricht ab, wenn `pytest -m live` **null** Tests einsammelt
 (Exit-Code 5). Ein grüner Lauf ohne Tests sieht wie Abdeckung aus und ist
 schlimmer als kein Lauf — so fing dieses Repo an.
 
+**Nach 60 Tagen ohne Repo-Aktivität deaktiviert GitHub den cron-Trigger.**
+Ein ruhiger Server verliert seine Überwachung also genau dann, wenn niemand
+hinsieht — und zwar lautlos: der Workflow bleibt stehen, er läuft nur nicht
+mehr. Vor dem Schluss «seit Wochen nichts kaputt» erst prüfen, ob überhaupt
+noch gefahren wird (Actions-Seite, letzter Lauf). Wiedereinschalten geht dort
+per Knopf; ein Commit allein reicht nicht.
+
 Beide Live-Tests brauchen keinen API-Key: sie messen, welche Routen das
 Gateway führt (401 = Route da, Schlüssel fehlt; 404 = Route weg). Wer eine
 Zusicherung ergänzt, die einen Schlüssel braucht, muss vorher
