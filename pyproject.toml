@@ -38,7 +38,10 @@ dev = [
     "pytest-asyncio>=0.23.0,<2.0.0",
     "pytest-cov>=5.0.0,<7.0.0",
     "respx>=0.21.0,<1.0.0",
-    "ruff>=0.4.0,<1.0.0",
+    # Exakt die Version, die die CI faehrt (.github/workflows/ci.yml).
+    # Eine Spanne liefert lokal eine andere ruff-Version als dort und meldet
+    # Abweichungen an Code, den niemand angefasst hat.
+    "ruff==0.16.1",
 ]
 
 [project.scripts]
