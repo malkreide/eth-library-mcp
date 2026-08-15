@@ -132,6 +132,21 @@ Nach dem Hinzufügen eines Tools:
 
 ---
 
+## Die Live-Suite: wann sie läuft, und wer ein rotes Ergebnis sieht
+
+**Kadenz:** täglich um 06:17 UTC, dazu jederzeit von Hand über *Actions → Live-Tests → Run
+workflow*. Siehe [`.github/workflows/live-tests.yml`](.github/workflows/live-tests.yml).
+
+**Wer es sieht:** Ein roter Lauf öffnet ein Issue mit dem Label `live-test-failure` (Titel: «Live-Test rot (<Datum>): api.library.ethz.ch»). Ein zweiter roter Lauf erkennt das offene Issue **am Label**, nicht am Titel, und hängt sich an denselben Thread. Wer das Label von Hand entfernt, bekommt beim nächsten roten Lauf ein zweites Issue. Ein grüner Lauf schliesst das Issue **nicht** von selbst — nach einem behobenen Ausfall gehört es von Hand zugemacht, sonst hält der nächste Blick den alten Ausfall für den neuen.
+
+**Ein roter Live-Lauf heisst nicht zwingend «unser Fehler».** Er heisst: Der
+Vertrag mit der Quelle hat sich geändert, oder die Quelle ist gerade aus. Beides
+gehört gesehen, nur das Erste gehört gefixt. Bitte den Lauf lesen, bevor der Job
+deaktiviert wird — so stirbt dieser Check, und er ist der einzige im Repo, der
+einer falschen Grundannahme über api.library.ethz.ch widersprechen kann. Jeder andere Test
+prüft gegen eine Fixture, und die Fixture ist aus derselben Annahme geschrieben
+wie der Code.
+
 ## Fragen
 
 Eröffnen Sie eine [GitHub Discussion](https://github.com/malkreide/eth-library-mcp/discussions) oder kontaktieren Sie die Maintainerin über GitHub.
