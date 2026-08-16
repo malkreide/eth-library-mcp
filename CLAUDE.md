@@ -74,6 +74,9 @@ Installationsformen (`--upgrade`, Anführungszeichen, `pip3`,
 `uv tool install`, `uv run --with`) und beide Workflow-Endungen; eine engere
 Fassung war grün, weil sie nicht hinsah.
 
+Vor dem Lauf `ruff --version` prüfen: ein älteres ruff früher im `PATH`
+schlägt den Pin, ohne dass der Install etwas meldet.
+
 ### Gate-Befehle (wörtlich aus `ci.yml`, in dieser Reihenfolge)
 
 ```bash
