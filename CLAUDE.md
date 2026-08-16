@@ -54,6 +54,11 @@ nach. Eine `.pre-commit-config.yaml` gibt es nicht.
 `pip install -e ".[dev]"` liefert damit lokal dieselbe ruff-Version wie die
 CI. Keinen zweiten Pin einbauen — zwei Pins driften auseinander, und dann
 weicht der lokale Lauf wieder still von der CI ab.
+`tests/test_werkzeug_versionen.py` hält das fest, statt es zu behaupten: Der
+Absatz hier kann nicht umfallen, der Test schon. Er kennt dabei alle gängigen
+Installationsformen (`--upgrade`, Anführungszeichen, `pip3`,
+`uv tool install`, `uv run --with`) und beide Workflow-Endungen; eine engere
+Fassung war grün, weil sie nicht hinsah.
 
 ### Gate-Befehle (wörtlich aus `ci.yml`, in dieser Reihenfolge)
 
@@ -73,8 +78,13 @@ Die CI schliesst sie per `-m "not live"` aus; gefahren werden sie täglich
 06:17 UTC von `.github/workflows/live-tests.yml` (cron, dazu
 `workflow_dispatch` von Hand). Ein roter Lauf öffnet ein Issue mit Label
 `live-test-failure` — oder kommentiert das offene, statt ein zweites
-aufzumachen. Damit ist DRIFT-005 geschlossen; 5 von 10 geprüften Servern des
-Portfolios verletzen ihn weiterhin.
+aufzumachen. Damit ist DRIFT-005 geschlossen.
+
+Hier stand «5 von 10 geprüften Servern des Portfolios verletzen ihn
+weiterhin». Nachgezählt am 16.08.2026 über 22 Klone: **alle 22 fahren einen
+geplanten Live-Lauf**, die Zahl war also überholt. Eine Kennzahl über *andere*
+Repos gehört ohnehin in den Audit-Katalog und nicht hierher — sie veraltet
+still, weil sie sich in diesem Repo durch nichts überprüfen lässt.
 
 Der Workflow bricht ab, wenn `pytest -m live` **null** Tests einsammelt
 (Exit-Code 5). Ein grüner Lauf ohne Tests sieht wie Abdeckung aus und ist
