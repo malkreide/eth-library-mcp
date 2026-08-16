@@ -84,7 +84,10 @@ ruff format --check src/ tests/ scripts/
 python scripts/check_version_sync.py
 ```
 
-Matrix: Python 3.11, 3.12, 3.13. Trigger: Push und PR auf `main`.
+Matrix: Python 3.11, 3.12, 3.13. Trigger: Push und PR auf `main`. Alle Gates
+laufen in einem Job auf allen drei Feldern — keine `if:`-Ausnahme, kein
+zweiter lint-Job. Ein `fail-fast: false` steht nicht da: Eine rote 3.11
+bricht 3.12 und 3.13 ab, bevor sie etwas sagen.
 
 ### Live-Tests
 
