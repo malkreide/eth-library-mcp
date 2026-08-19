@@ -68,3 +68,10 @@ Die Zusicherungen hängen nicht an diesem Text, sondern an
 `tests/test_session_start_hook.py` — ein Absatz fällt nicht um, ein Test schon.
 Die Tests bauen echte Repos in `tmp_path` (inklusive eines mit `master` als
 Default-Branch) und laufen ohne Internet in rund zwei Sekunden.
+
+Auch `exec </dev/null` ist dort abgedeckt: ein `git` aus dem `PATH`-Vorlauf,
+das stdin liest, steht stellvertretend für jeden Aufruf, der auf eine Eingabe
+wartet — Credential-Helper, ssh, ein nachfragendes git. Der Hook bekommt ein
+stdin, das nie schließt. Nimmt man die Zeile heraus, hängt er, und der Test
+fällt; die Zeitgrenzen im Skript liegen nur um die Netzaufrufe und würden
+diesen Fall nicht auffangen.
