@@ -241,3 +241,82 @@ def test_haengendes_remote_laeuft_in_die_zeitgrenze(welt):
     assert ergebnis.returncode == 0
     assert ergebnis.stdout == ""
     assert gedauert < 20, f"Hook brauchte {gedauert:.1f}s — die Zeitgrenze greift nicht"
+
+
+def _hook_mit_offenem_stdin(
+    repo: pathlib.Path, ausgabe: pathlib.Path, pfad_praefix: pathlib.Path
+) -> int:
+    """Den Hook fahren, ohne stdin je zu schliessen — und ohne zu warten.
+
+    `subprocess.PIPE` plus »nie schreiben, nie schliessen« ist der Fall, den
+    `exec </dev/null` abfangen muss: stdin existiert, liefert aber nie EOF.
+    """
+    with ausgabe.open("wb") as ziel:
+        prozess = subprocess.Popen(
+            [str(_HOOK)],
+            cwd=str(repo),
+            env={
+                **os.environ,
+                **_GIT_ENV,
+                "CLAUDE_PROJECT_DIR": str(repo),
+                "PATH": f"{pfad_praefix}{os.pathsep}{os.environ['PATH']}",
+            },
+            stdin=subprocess.PIPE,
+            stdout=ziel,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            return prozess.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            prozess.kill()
+            prozess.wait()
+            pytest.fail("Hook wartet auf eine Eingabe — `exec </dev/null` fehlt")
+        finally:
+            if prozess.stdin is not None:
+                prozess.stdin.close()
+
+
+def test_offenes_stdin_haelt_den_hook_nicht_an(welt, tmp_path: pathlib.Path):
+    """Nichts im Hook darf je auf eine Eingabe warten.
+
+    Claude Code schreibt das Hook-JSON nach stdin; ein Aufruf von Hand erbt das
+    Terminal. Wartet irgendein Kindprozess darauf — ein Credential-Helper, ssh,
+    ein `git`, das nachfragt —, haengt der Sessionstart, und zwar unbegrenzt:
+    die Zeitgrenzen im Skript liegen nur um die Netzaufrufe.
+
+    Stellvertretend dafuer steht hier ein `git`, das stdin liest, bis es
+    geschlossen wird. Mit `exec </dev/null` bekommt es sofort EOF; ohne
+    wartet es auf ein stdin, das nie schliesst.
+    """
+    klon, _origin, _vorspulen = welt()
+
+    attrappen = tmp_path / "pfad"
+    attrappen.mkdir()
+    falsches_git = attrappen / "git"
+    falsches_git.write_text("#!/bin/sh\ncat >/dev/null\nexit 1\n", encoding="utf-8")
+    falsches_git.chmod(0o755)
+
+    ausgabe = tmp_path / "ausgabe.txt"
+    rueckgabe = _hook_mit_offenem_stdin(klon, ausgabe, attrappen)
+
+    assert rueckgabe == 0
+    assert ausgabe.read_text(encoding="utf-8") == ""
+
+
+def test_hook_json_auf_stdin_stoert_ihn_nicht(welt):
+    """So faehrt Claude Code ihn wirklich: das Ereignis-JSON liegt auf stdin."""
+    klon, _origin, vorspulen = welt()
+    vorspulen(3)
+
+    ergebnis = subprocess.run(
+        [str(_HOOK)],
+        cwd=str(klon),
+        env={**os.environ, **_GIT_ENV, "CLAUDE_PROJECT_DIR": str(klon)},
+        input='{"hook_event_name":"SessionStart","source":"startup"}',
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+    assert ergebnis.returncode == 0
+    assert "3 Commit(s) hinter origin/main" in ergebnis.stdout
