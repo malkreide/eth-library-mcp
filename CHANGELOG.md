@@ -7,6 +7,28 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Behoben
+
+- **Browser-Clients scheiterten am Preflight.** Spec `2026-07-28` routet eine
+  Streamable-HTTP-Anfrage über `Mcp-Method`, `Mcp-Name` und
+  `Mcp-Protocol-Version`; die CORS-Freigabeliste nannte keinen davon, dafür mit
+  `Mcp-Session-Id` den Header genau der Session-Mechanik, die dieselbe Revision
+  abgeschafft hat. Ein Browser darf einen nicht safelisteten Header nicht
+  senden, wenn der Server ihn nicht nennt: die Anfrage starb vor dem ersten
+  MCP-Byte, während stdio und Python weiterliefen. Deshalb war nichts rot.
+
+### Hinzugefügt
+
+- **`build_http_app()`**, herausgezogen aus `_run_http`, damit die CORS-Schicht
+  überhaupt prüfbar ist. `_run_http` ruft die neue Funktion auf; am Verhalten
+  ändert sich nichts.
+
+- **Frischehinweise auf den auflistenden Methoden** (SEP-2549, Spec
+  `2026-07-28`): `tools/list`, `resources/list`, `resources/templates/list`,
+  `prompts/list` und `server/discover` antworten mit `ttlMs` 300000 und
+  `cacheScope` `public`. `resources/read` und `prompts/get` bleiben ohne
+  Hinweis: das wäre eine Zusicherung über den Inhalt statt über das Verzeichnis.
+
 ### Behoben — BUG-02 ist erledigt, durch Entfernen des Werkzeugs
 
 Im Code und in beiden READMEs stand seit laengerem dieselbe Notiz:

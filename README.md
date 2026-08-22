@@ -25,7 +25,7 @@
 
 **6 Tools · 1 API · 2 Resources · 2 Prompts**
 
-**MCP Protocol Version:** [`2025-06-18`](https://modelcontextprotocol.io/specification/) (via `mcp[cli]>=1.0.0,<2.0.0`).
+**MCP Protocol Version:** [`2026-07-28`](https://modelcontextprotocol.io/specification/) (via `mcp[cli]>=2.0.0,<3`).
 
 > **BUG-02 is resolved — by removing the tool.** `eth_search_persons` was documented
 > as "currently non-functional, correct URL to be verified". It has now been verified,
