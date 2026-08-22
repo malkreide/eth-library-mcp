@@ -29,6 +29,7 @@ import os
 import sys
 from typing import Literal
 
+from mcp.server.caching import CacheableMethod, CacheHint
 from mcp.server.mcpserver import Context, MCPServer
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -113,8 +114,36 @@ SORT_OPTIONS = list(SortOption.__args__)  # type: ignore[attr-defined]
 
 # ─── Server-Initialisierung ───────────────────────────────────────────────────
 
+# SEP-2549, Spec 2026-07-28: die auflistenden Methoden tragen `ttlMs` und
+# `cacheScope`. Das SDK setzt beides auf «sofort veraltet, nie geteilt» — ein
+# Server ohne `cache_hints` verhaelt sich also nicht neutral, sondern laesst
+# jeden Client bei jeder Verbindung neu auflisten, fuer Listen, die beim Import
+# feststehen und sich zur Laufzeit des Prozesses nicht aendern koennen.
+#
+# `public` folgt aus der Sache, nicht aus Bequemlichkeit: die 6 Tools werden
+# per Dekorator beim Import registriert, es gibt keine Filterung nach Aufrufer.
+# Sobald eine Liste vom Aufrufer abhaengt, muss der Scope im selben Commit auf
+# `private` wechseln.
+#
+# `resources/read` und `prompts/get` stehen bewusst nicht dabei: das waere eine
+# Zusicherung ueber den INHALT statt ueber das Verzeichnis.
+LIST_CACHE_TTL_MS = 300_000
+
+# Annotiert, nicht inferiert: `MCPServer` nimmt
+# `Mapping[CacheableMethod, CacheHint]`, und ein Dict-Literal ohne Annotation
+# inferiert mypy als `str`. Zur Laufzeit stimmt beides — ein `mypy src/`-Gate
+# meldet den Unterschied, die Tests nicht.
+CACHE_HINTS: dict[CacheableMethod, CacheHint] = {
+    "tools/list": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
+    "resources/list": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
+    "resources/templates/list": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
+    "prompts/list": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
+    "server/discover": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
+}
+
 mcp = MCPServer(
     "eth_library_mcp",
+    cache_hints=CACHE_HINTS,
     instructions=(
         "MCP Server für die ETH-Bibliothek Zürich. "
         "Bietet Zugriff auf über 30 Millionen Bücher, Zeitschriften, Bilder, Karten "
@@ -751,9 +780,23 @@ Fokus: Pädagogik, Schulgeschichte, Bildungsforschung, didaktische Materialien."
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-def _run_http(host: str, port: int) -> None:
-    """SDK-004: Streamable-HTTP-Transport mit CORS-Middleware."""
-    import uvicorn
+# Die Header, nach denen Spec 2026-07-28 eine Streamable-HTTP-Anfrage routet —
+# in der Schreibweise des SDK (`mcp.shared.inbound`). Ein Browser darf einen
+# nicht safelisteten Header gar nicht erst senden, wenn der Server ihn nicht in
+# `Access-Control-Allow-Headers` nennt: ohne sie stirbt jede Cross-Origin-
+# Anfrage am Preflight, vor dem ersten MCP-Byte. stdio- und Python-Clients
+# kennen keinen Preflight und merken davon nichts — deshalb fiel es nicht auf.
+CORS_ROUTING_HEADERS = ["Mcp-Method", "Mcp-Name", "Mcp-Protocol-Version"]
+
+
+def build_http_app():
+    """Baut die Streamable-HTTP-App samt CORS, ohne einen Socket zu binden.
+
+    Herausgezogen aus `_run_http`, damit die CORS-Schicht pruefbar ist: solange
+    Aufbau und `uvicorn.run` in derselben Funktion standen, liess sich die
+    Freigabeliste nur lesen, nicht ausprobieren — und eine gelesene Liste kann
+    vollstaendig aussehen und trotzdem nie an der Middleware ankommen.
+    """
     from starlette.middleware.cors import CORSMiddleware
 
     app = mcp.streamable_http_app()
@@ -761,10 +804,17 @@ def _run_http(host: str, port: int) -> None:
         CORSMiddleware,
         allow_origins=["*"],
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Mcp-Session-Id", "Content-Type"],
+        allow_headers=["Mcp-Session-Id", "Content-Type", *CORS_ROUTING_HEADERS],
         expose_headers=["Mcp-Session-Id"],
     )
-    uvicorn.run(app, host=host, port=port, log_level="warning")
+    return app
+
+
+def _run_http(host: str, port: int) -> None:
+    """SDK-004: Streamable-HTTP-Transport mit CORS-Middleware."""
+    import uvicorn
+
+    uvicorn.run(build_http_app(), host=host, port=port, log_level="warning")
 
 
 if __name__ == "__main__":
