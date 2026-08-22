@@ -140,7 +140,7 @@ wie der Code: Nichts ist rot, weil nichts geprüft wird, worauf es ankommt.
 
 ### ruff-Version
 
-**`ruff==0.16.1`**, gepinnt an genau einer Stelle: im `dev`-Extra von
+**`ruff==0.16.3`**, gepinnt an genau einer Stelle: im `dev`-Extra von
 `pyproject.toml`. Die CI installiert von dort und pinnt nicht selbst
 nach. Eine `.pre-commit-config.yaml` gibt es nicht.
 
