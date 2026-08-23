@@ -29,6 +29,23 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
   `cacheScope` `public`. `resources/read` und `prompts/get` bleiben ohne
   Hinweis: das wäre eine Zusicherung über den Inhalt statt über das Verzeichnis.
 
+- **Protokoll-Gate: beide Spec-Aeren gepinnt und geprueft**
+  (`tests/test_protocol_version.py`). `mcp` 2.x bedient zwei Aeren ueber
+  denselben Server — den `initialize`-Handshake, der bei `2025-11-25`
+  deckelt, und den Pro-Request-Envelope, der `2026-07-28` erreicht.
+  `LATEST_PROTOCOL_VERSION` ist ein Alias auf die **moderne** Aera; wer nur
+  dagegen pinnt, laesst genau die Aera frei wandern, die heutige Clients
+  aushandeln. Beide sind jetzt einzeln gepinnt, ein Dependabot-Bump von
+  `mcp` kann keine davon still verschieben.
+
+  Nachgemessen statt aus Konstantennamen geschlossen: ein echter `initialize`
+  durch den zusammengebauten ASGI-Stack. Ein Client, der ueber den Handshake
+  nach `2026-07-28` fragt, bekommt `2025-11-25` zurueck.
+
+  Beide READMEs beschreiben die Aeren; ein Test haelt jede Sprache einzeln
+  dagegen — im Portfolio sind EN und DE desselben Repos schon dreimal
+  auseinandergelaufen, weil nur eine Fassung nachgezogen wurde.
+
 ### Behoben — BUG-02 ist erledigt, durch Entfernen des Werkzeugs
 
 Im Code und in beiden READMEs stand seit laengerem dieselbe Notiz:
