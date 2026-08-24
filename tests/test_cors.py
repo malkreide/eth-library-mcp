@@ -41,7 +41,12 @@ ENDPOINT = "/mcp"
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    _ = monkeypatch
+    """`ETH_LIBRARY_CORS_ORIGINS` muss gesetzt sein: die Origins sind jetzt
+    fail-closed, ein unkonfigurierter Server laesst gar keinen Browser durch.
+    Ohne diese Zeile faellt jeder Header- und Methodentest hier mit 400 —
+    nicht, weil an der Freigabeliste etwas fehlt, sondern weil der Preflight
+    schon an der Origin endet."""
+    monkeypatch.setenv("ETH_LIBRARY_CORS_ORIGINS", ORIGIN)
     return TestClient(build_http_app())
 
 
@@ -74,15 +79,15 @@ def test_preflight_laesst_jeden_routing_header_durch(client: TestClient, header:
 def test_preflight_laesst_die_routing_header_gemeinsam_durch(client: TestClient) -> None:
     """Was ein Browser tatsaechlich schickt: alle drei auf derselben Anfrage.
 
-    Die Origin-Zusicherung ist hier bewusst `ORIGIN oder "*"`: dieser Server
-    faehrt `allow_origins=["*"]`, echot den Origin also nicht zurueck, sondern
-    antwortet mit dem Wildcard. Auf `== ORIGIN` zu bestehen hiesse, eine
-    Origin-Politik zu pruefen, die dieses Repo nicht hat — und der Test wuerde
-    fallen, ohne dass an den Routing-Headern etwas fehlt.
+    Die Origin-Zusicherung war hier `ORIGIN oder "*"`, weil der Server
+    `allow_origins=["*"]` fuhr und den Origin gar nicht zurueckechote. Diese
+    Begruendung ist mit der Wildcard weggefallen: die Fixture nennt jetzt eine
+    Origin, und Starlette echot genau sie. `== ORIGIN` prueft damit wieder das,
+    was die Zeile behauptet.
     """
     resp = preflight(client, ", ".join(h.lower() for h in CORS_ROUTING_HEADERS))
     assert resp.status_code == 200
-    assert resp.headers["access-control-allow-origin"] in (ORIGIN, "*")
+    assert resp.headers["access-control-allow-origin"] == ORIGIN
 
 
 def test_ein_nicht_freigegebener_header_wird_weiterhin_abgewiesen(client: TestClient) -> None:
@@ -187,3 +192,61 @@ def test_die_methodenliste_nennt_die_sessionbeendigung() -> None:
 
     assert "DELETE" in CORS_ALLOW_METHODS
     assert "*" not in CORS_ALLOW_METHODS
+
+
+# ── Origins ────────────────────────────────────────────────────────────────
+#
+# `allow_origins` war das Literal `["*"]`, ohne jede Variable, die es haette
+# einschraenken koennen. Gemessen am zusammengebauten Stack antwortete der
+# Preflight jeder beliebigen Origin mit `Access-Control-Allow-Origin: *` —
+# `https://evil.example` genauso wie `https://client.example`.
+
+
+def test_ohne_konfigurierte_origin_kommt_kein_browser_durch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fail-closed. Nicht gesetzt heisst jetzt: gar kein Cross-Origin-Zugriff.
+
+    stdio- und Nicht-Browser-Clients sind davon unberuehrt — CORS regelt
+    ausschliesslich Browser.
+    """
+    monkeypatch.delenv("ETH_LIBRARY_CORS_ORIGINS", raising=False)
+    c = TestClient(build_http_app())
+    resp = preflight(c, "content-type")
+    assert "access-control-allow-origin" not in resp.headers
+
+
+def test_eine_fremde_origin_wird_abgewiesen(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Die Gegenkontrolle. Ohne sie waere jeder Origin-Test hier auch gegen die
+    alte Wildcard gruen gewesen — die Zusicherung koennte nicht widerlegen,
+    wovon sie handelt."""
+    monkeypatch.setenv("ETH_LIBRARY_CORS_ORIGINS", ORIGIN)
+    c = TestClient(build_http_app())
+    resp = c.options(
+        ENDPOINT,
+        headers={
+            "Origin": "https://woanders.example",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert "access-control-allow-origin" not in resp.headers
+
+
+def test_die_wildcard_bleibt_erreichbar_muss_aber_verlangt_werden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Einen Default verschaerfen ist nicht dasselbe wie die Option streichen.
+    Wer Any-Origin will, bekommt es weiterhin — bewusst, und der Server
+    protokolliert es."""
+    monkeypatch.setenv("ETH_LIBRARY_CORS_ORIGINS", "*")
+    c = TestClient(build_http_app())
+    assert preflight(c, "content-type").headers["access-control-allow-origin"] == "*"
+
+
+def test_configured_origins_liest_eine_liste(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kommaseparierte Liste, Leerzeichen weg, leere Eintraege raus."""
+    from eth_library_mcp.server import configured_origins
+
+    monkeypatch.setenv("ETH_LIBRARY_CORS_ORIGINS", " https://a.test , ,https://b.test ")
+    assert configured_origins() == ["https://a.test", "https://b.test"]
