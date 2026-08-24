@@ -108,6 +108,7 @@ Try it immediately in Claude Desktop:
 | `ETH_LIBRARY_API_KEY` | API key for Discovery & Persons API | ✅ |
 | `ETH_LIBRARY_LOG_LEVEL` | Log level (`DEBUG`/`INFO`/`WARNING`/`ERROR`), default `INFO` | — |
 | `ETH_LIBRARY_CORS_ORIGINS` | Comma-separated CORS allow-origins for `--http`. Empty by default: no browser client is permitted. `*` allows any origin and is logged as a warning. Does not affect stdio clients. | — |
+| `ETH_LIBRARY_ALLOWED_HOSTS` | Comma-separated hostnames this server is reachable under. Required for a non-loopback bind (`--host 0.0.0.0`): the process cannot derive its own public name, and without this the SDK answers **421 Invalid Host header** to every request. Empty by default; loopback stays reachable either way. | — |
 
 ### Claude Desktop Configuration
 
