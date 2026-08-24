@@ -7,6 +7,27 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Geändert
+
+- **BRECHEND: `allow_origins` war das Literal `["*"]`.** Jede Website im Netz
+  durfte diesen Server aus dem Browser eines Besuchers aufrufen, und es gab
+  keine Umgebungsvariable, mit der man das haette einschraenken koennen — die
+  Wildcard stand fest verdrahtet in `build_http_app`.
+
+  Gemessen vorher am zusammengebauten ASGI-Stack: ein Preflight von
+  `https://evil.example` bekam `Access-Control-Allow-Origin: *`, genau wie
+  `https://client.example`. Danach ohne Konfiguration gar kein
+  `Access-Control-Allow-Origin` mehr.
+
+  Neu liest `configured_origins()` die Variable `ETH_LIBRARY_CORS_ORIGINS`
+  (kommasepariert, Default leer). Die Wildcard bleibt erreichbar, muss aber
+  verlangt werden, und der Server protokolliert sie dann als `warning`; ein
+  leerer Wert wird als `info` vermerkt.
+
+  **Wer den bisherigen Zustand behalten will, setzt
+  `ETH_LIBRARY_CORS_ORIGINS=*`.** stdio- und Nicht-Browser-Clients sind
+  unberuehrt — CORS regelt ausschliesslich Browser.
+
 ### Behoben
 
 - **`DELETE` fehlte in `allow_methods`.** Auf streamable-http beendet die

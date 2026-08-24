@@ -801,6 +801,24 @@ CORS_ROUTING_HEADERS = ["Mcp-Method", "Mcp-Name", "Mcp-Protocol-Version"]
 CORS_ALLOW_METHODS = ["GET", "POST", "DELETE", "OPTIONS"]
 
 
+def configured_origins() -> list[str]:
+    """Liest `ETH_LIBRARY_CORS_ORIGINS`. Leer per Default — kein Cross-Origin.
+
+    Hier stand das Literal `["*"]`, und es gab keine Variable, mit der man es
+    haette einschraenken koennen: jede Website im Netz durfte diesen Server aus
+    dem Browser eines Besuchers aufrufen. Die Wildcard ist weiterhin
+    erreichbar — sie muss jetzt nur verlangt werden, und der Server sagt es im
+    Log.
+
+    Fail-closed ist der Portfolio-Default: niemand erbt eine freizuegige
+    Einstellung, die er nicht gewaehlt hat. stdio- und Nicht-Browser-Clients
+    sind davon unberuehrt, CORS regelt ausschliesslich Browser.
+    """
+    return [
+        o.strip() for o in os.environ.get("ETH_LIBRARY_CORS_ORIGINS", "").split(",") if o.strip()
+    ]
+
+
 def build_http_app():
     """Baut die Streamable-HTTP-App samt CORS, ohne einen Socket zu binden.
 
@@ -812,9 +830,25 @@ def build_http_app():
     from starlette.middleware.cors import CORSMiddleware
 
     app = mcp.streamable_http_app()
+    origins = configured_origins()
+    if "*" in origins:
+        log.warning(
+            "cors_wildcard_origin",
+            hint="ETH_LIBRARY_CORS_ORIGINS enthaelt '*'; jede Website kann "
+            "diesen Server aus dem Browser eines Besuchers aufrufen. In "
+            "Produktion explizite Origins nennen.",
+        )
+    elif not origins:
+        log.info(
+            "cors_no_origins",
+            hint="ETH_LIBRARY_CORS_ORIGINS ist nicht gesetzt, browserbasierte "
+            "MCP-Clients werden daher nicht zugelassen. Auf eine "
+            "kommaseparierte Origin-Liste setzen, um sie zu erlauben. "
+            "stdio- und Nicht-Browser-Clients sind davon unberuehrt.",
+        )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=origins,
         allow_methods=CORS_ALLOW_METHODS,
         allow_headers=["Mcp-Session-Id", "Content-Type", *CORS_ROUTING_HEADERS],
         expose_headers=["Mcp-Session-Id"],

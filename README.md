@@ -106,6 +106,8 @@ Try it immediately in Claude Desktop:
 | Variable | Description | Required |
 |---|---|---|
 | `ETH_LIBRARY_API_KEY` | API key for Discovery & Persons API | ✅ |
+| `ETH_LIBRARY_LOG_LEVEL` | Log level (`DEBUG`/`INFO`/`WARNING`/`ERROR`), default `INFO` | — |
+| `ETH_LIBRARY_CORS_ORIGINS` | Comma-separated CORS allow-origins for `--http`. Empty by default: no browser client is permitted. `*` allows any origin and is logged as a warning. Does not affect stdio clients. | — |
 
 ### Claude Desktop Configuration
 
