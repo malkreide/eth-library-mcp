@@ -819,17 +819,83 @@ def configured_origins() -> list[str]:
     ]
 
 
-def build_http_app():
+def allowed_hosts() -> list[str]:
+    """Liest `ETH_LIBRARY_ALLOWED_HOSTS`. Kommasepariert, leer per Default.
+
+    Noetig, sobald nicht auf Loopback gebunden wird: unter welchem Namen dieser
+    Prozess erreichbar ist, kann er aus der Bind-Adresse nicht ableiten.
+    """
+    return [
+        h.strip() for h in os.environ.get("ETH_LIBRARY_ALLOWED_HOSTS", "").split(",") if h.strip()
+    ]
+
+
+def build_transport_security(host: str, port: int):
+    """Host-/Origin-Freigabeliste des SDK (SEC-005, eingehende Haelfte).
+
+    Ohne dieses Objekt ist der Server nicht etwa ungeschuetzt, sondern falsch
+    geschuetzt: `streamable_http_app` synthetisiert bei fehlendem
+    `transport_security` und Loopback-`host` selbst eine Liste
+    (`mcp/server/mcpserver/server.py`), und die kennt nur Loopback. Gemessen am
+    zusammengebauten Stack hiess das zweierlei — jede konfigurierte
+    Fremd-Origin bekam **403 Invalid Origin header**, und unter einem echten
+    Hostnamen war ueberhaupt jede Anfrage **421 Invalid Host header**.
+    `ETH_LIBRARY_CORS_ORIGINS` war damit wirkungslos: CORS liess durch, das
+    SDK wies ab.
+
+    Auf einem Nicht-Loopback-Bind ohne `ETH_LIBRARY_ALLOWED_HOSTS` gibt es
+    nichts zu raten — hier `None` zurueckzugeben laesst den Schutz aus, statt
+    mit einer geratenen Liste genau das 421 zu reproduzieren. Der Aufrufer
+    warnt.
+    """
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    loopback = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+    genannt = allowed_hosts()
+    if genannt:
+        # Loopback bleibt erreichbar, sonst brechen Container-Health-Checks.
+        hosts = set(genannt) | loopback
+    elif host in ("127.0.0.1", "localhost", "::1"):
+        hosts = loopback | {f"{host}:{port}"}
+    else:
+        return None
+
+    # Die konfigurierten CORS-Origins muessen auch hier durch, sonst weist der
+    # Server genau die Browser-Clients ab, die CORS erlaubt. `*` ist hier nicht
+    # ausdrueckbar (Origins werden literal verglichen) und wird nicht kopiert.
+    origins = {o for o in configured_origins() if o != "*"}
+    origins |= {f"http://{h}" for h in hosts}
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=sorted(hosts),
+        allowed_origins=sorted(origins),
+    )
+
+
+def build_http_app(host: str = "127.0.0.1", port: int = 8000):
     """Baut die Streamable-HTTP-App samt CORS, ohne einen Socket zu binden.
 
     Herausgezogen aus `_run_http`, damit die CORS-Schicht pruefbar ist: solange
     Aufbau und `uvicorn.run` in derselben Funktion standen, liess sich die
     Freigabeliste nur lesen, nicht ausprobieren — und eine gelesene Liste kann
     vollstaendig aussehen und trotzdem nie an der Middleware ankommen.
+
+    `host` muss die Adresse sein, an die uvicorn tatsaechlich bindet: unter
+    `mcp` 2.x leitet das SDK seine Host-Freigabeliste aus dem App-Argument ab.
+    Weglassen hiess HTTP 421 auf jede echte Anfrage.
     """
     from starlette.middleware.cors import CORSMiddleware
 
-    app = mcp.streamable_http_app()
+    security = build_transport_security(host, port)
+    if security is None:
+        log.warning(
+            "dns_rebinding_protection_off",
+            host=host,
+            hint="Bind ist nicht Loopback und ETH_LIBRARY_ALLOWED_HOSTS ist "
+            "leer. Die Variable auf die Hostnamen setzen, unter denen dieser "
+            "Server erreichbar ist, damit Host und Origin geprueft werden.",
+        )
+    app = mcp.streamable_http_app(transport_security=security, host=host)
     origins = configured_origins()
     if "*" in origins:
         log.warning(
@@ -860,7 +926,7 @@ def _run_http(host: str, port: int) -> None:
     """SDK-004: Streamable-HTTP-Transport mit CORS-Middleware."""
     import uvicorn
 
-    uvicorn.run(build_http_app(), host=host, port=port, log_level="warning")
+    uvicorn.run(build_http_app(host, port), host=host, port=port, log_level="warning")
 
 
 if __name__ == "__main__":

@@ -7,6 +7,39 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Behoben
+
+- **`ETH_LIBRARY_CORS_ORIGINS` war wirkungslos.** Die Variable wurde eine
+  Version zuvor eingeführt, konnte aber nicht tun, was sie versprach:
+  `build_http_app` übergab weder `transport_security=` noch `host=`. Das ist
+  nicht «ungeschützt», sondern falsch geschützt — `streamable_http_app`
+  synthetisiert bei fehlendem `transport_security` und Loopback-`host` selbst
+  eine Freigabeliste (`mcp/server/mcpserver/server.py`), und die kennt nur
+  Loopback.
+
+  Gemessen am zusammengebauten ASGI-Stack, mit gesetzter Variable:
+
+  ```
+  Host 127.0.0.1:8000, Origin https://client.example -> 403 Invalid Origin
+  Host testserver,     Origin https://client.example -> 421 Invalid Host
+  Host mcp.example.ch, ohne Origin                   -> 421 Invalid Host
+  ```
+
+  CORS liess durch, das SDK wies ab. Danach jeweils `200`, und eine fremde
+  Origin bleibt bei `403`.
+
+  Damit ist auch der in `README.md` dokumentierte Bind `--http --host 0.0.0.0`
+  wieder benutzbar: er antwortete zuvor auf **jede** Anfrage 421, unabhängig
+  von der Origin. Dafür gibt es neu `ETH_LIBRARY_ALLOWED_HOSTS` — unter welchem
+  Namen der Prozess erreichbar ist, kann er aus der Bind-Adresse nicht
+  ableiten. Bleibt die Variable auf einem Nicht-Loopback-Bind leer, wird der
+  Schutz mit einer Warnung abgeschaltet, statt ihn mit einer geratenen Liste
+  zu simulieren.
+
+  Die bestehende CORS-Suite konnte das nicht finden: sie schickt ausschliesslich
+  Preflights, und die beantwortet `CORSMiddleware`, bevor die App erreicht wird.
+  `tests/test_transport_security.py` schickt deshalb echte `initialize`-Anfragen.
+
 ### Geändert
 
 - **BRECHEND: `allow_origins` war das Literal `["*"]`.** Jede Website im Netz
