@@ -41,24 +41,42 @@ jobs:
         run: |
           pip install -e ".[dev]"
 
+      # `continue-on-error`, damit die Einordnung in jedem Fall laeuft. Rot
+      # wird der Job weiter unten, aus dem eingeordneten Ergebnis.
       - name: Run live tests
+        id: suite
+        continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=src pytest tests/ -m live | tee live-tests.log
-          code=${PIPESTATUS[0]}
-          set -e
+          PYTHONPATH=src pytest tests/ -m live \
+            --junitxml=live-report.xml 2>&1 | tee live-tests.log
+          echo "pytest_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
-          # Exit-Code 5 heisst: nichts eingesammelt. Ein Lauf, der null Tests
-          # faehrt und gruen meldet, ist schlimmer als kein Lauf - er sieht
-          # wie Abdeckung aus. Genau so fing dieses Repo an.
-          if [ "$code" -eq 5 ]; then
-            echo "::error::'pytest -m live' hat null Tests eingesammelt. Der Lauf sagt damit nichts ueber die Quelle aus."
-            exit 1
+      # Hier stand die Sonderbehandlung von Exit-Code 5: nichts eingesammelt,
+      # also rot. Der Gedanke war richtig — ein Lauf, der null Tests faehrt und
+      # gruen meldet, sieht wie Abdeckung aus, und genau so fing dieses Repo an.
+      # Er griff nur einen Fall von dreien:
+      #
+      #   * null eingesammelt — Exit 5, wurde erkannt;
+      #   * alle eingesammelten uebersprungen — Exit 0, sah aus wie Erfolg;
+      #   * pytest kam gar nicht bis zum Laufen — Exit irgendwas, sah unter
+      #     `if: failure()` aus wie ein gebrochener Vertrag mit der Quelle.
+      #
+      # Der Exit-Code kann diese drei nicht trennen; das JUnit-XML kann es, weil
+      # es Tests, Uebersprungene, Fehlschlaege und Fehler getrennt zaehlt.
+      - name: Ergebnis einordnen
+        id: verdict
+        env:
+          PYTEST_EXIT: ${{ steps.suite.outputs.pytest_exit }}
+        run: |
+          args=(live-report.xml)
+          if [ -n "$PYTEST_EXIT" ]; then
+            args+=(--pytest-exit "$PYTEST_EXIT")
           fi
-          exit "$code"
+          python scripts/classify_live_run.py "${args[@]}"
 
       - name: Bei Rot ein Issue oeffnen oder ergaenzen
-        if: failure()
+        if: steps.verdict.outputs.state == 'finding'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -93,3 +111,20 @@ jobs:
               --label live-test-failure \
               --body-file issue-body.md
           fi
+
+      # Erst hier wird der Job rot. `clear` ist gruen; `finding` und `unknown`
+      # sind beide rot, aber nur `finding` hat oben ein Issue erzeugt — der
+      # Unterschied steht im Log, nicht im Exit-Code.
+      #
+      # Ueber `env`, nicht ueber `${{ }}` im Skript: Der Grund kann eine
+      # Parser-Meldung ueber eine fremde Datei enthalten, und `${{ }}` setzt sie
+      # vor dem Start woertlich in die Shell ein.
+      - name: Ergebnis durchreichen
+        if: steps.verdict.outputs.state != 'clear'
+        env:
+          LIVE_STATE: ${{ steps.verdict.outputs.state }}
+          LIVE_REASON: ${{ steps.verdict.outputs.reason }}
+        run: |
+          echo "Live-Suite: $LIVE_STATE"
+          echo "$LIVE_REASON"
+          exit 1
