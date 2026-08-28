@@ -6,7 +6,7 @@
 # - Read-only filesystem support (run with --read-only --tmpfs /tmp)
 # - Health-check via the streamable-http transport endpoint
 
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 WORKDIR /build
 COPY pyproject.toml README.md ./
@@ -14,7 +14,7 @@ COPY src/ ./src/
 RUN pip install --no-cache-dir --upgrade pip build && \
     python -m build --wheel --outdir /wheels
 
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 # Non-root user
 RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin app
