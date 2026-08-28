@@ -28,12 +28,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Eine Version genuegt. Geprueft wird ein Netz-Vertrag, kein Verhalten,
       # das sich zwischen 3.11 und 3.13 unterscheiden koennte.
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
