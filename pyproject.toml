@@ -41,7 +41,7 @@ dev = [
     # Exakt die Version, die die CI faehrt (.github/workflows/ci.yml).
     # Eine Spanne liefert lokal eine andere ruff-Version als dort und meldet
     # Abweichungen an Code, den niemand angefasst hat.
-    "ruff==0.16.4",
+    "ruff==0.16.5",
 ]
 
 [project.scripts]
