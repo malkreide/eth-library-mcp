@@ -109,33 +109,6 @@ def _format_resource_detail(doc: dict[str, Any]) -> str:
     return "\n".join(filter(None, lines))
 
 
-def _parse_persons_response(data: Any) -> list[dict[str, Any]]:
-    """
-    Robustes Parsing der Persons-API-Antwort.
-
-    Unterstützt verschiedene Response-Strukturen der ETH Persons API:
-    - Direkte Liste: [...]
-    - Wrapper mit 'persons', 'results', 'data', 'items' oder 'hits' Key
-    """
-    if isinstance(data, list):
-        return data
-
-    if isinstance(data, dict):
-        for key in ("persons", "results", "data", "items", "hits"):
-            if key in data:
-                value = data[key]
-                if isinstance(value, list):
-                    return value
-
-        log.warning(
-            "persons_api_unknown_structure",
-            known_keys=["persons", "results", "data", "items", "hits"],
-            received_keys=list(data.keys()),
-        )
-
-    return []
-
-
 def _handle_error(
     e: Exception,
     context: str = "",
