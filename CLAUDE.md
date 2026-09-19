@@ -246,7 +246,9 @@ Meldung liefen ganz ohne Codex-Auslöser, dort hat niemand gemessen.
 In der Zwischenzeit sind 32 PRs mit formal erfülltem Häkchen gemergt worden,
 ohne dass jemand hineingesehen hat, und am 22.8. noch einmal 43.
 
-**Vier** Gründe, warum Codex schweigt, und nur einer davon ist harmlos:
+**Vier** Gründe, warum kein Review-Objekt erscheint, und nur einer davon ist
+harmlos. «Schweigen» hiess es hier, bis am 19.9.2026 auffiel, dass drei der
+vier sehr wohl etwas schreiben — nur eben keinen Review:
 
 - **Kein Befund** — dann schreibt er einen gewöhnlichen Issue-Kommentar:
 
@@ -259,29 +261,42 @@ ohne dass jemand hineingesehen hat, und am 22.8. noch einmal 43.
   Infokasten, den Codex unter jeden Review setzt, behauptet weiterhin eine
   Reaktion («otherwise it will react with 👍») — am 23.8. kam in sechs Repos
   die Meldung und in keinem die Reaktion. Der Kasten ist keine Quelle.
-- **Der PR ist ein Draft** — darauf läuft Codex nicht an.
+- **Der PR ist ein Draft** — darauf läuft Codex nicht an. Er schweigt dabei
+  aber nicht, sondern schreibt die Environment-Meldung unten. Siehe den
+  Nachtrag.
 - **Das Kontingent ist weg** — dann schreibt er die Meldung oben.
-- **Für das Repo fehlt eine Environment** — dann schreibt er:
+- **Angeblich fehlt für das Repo eine Environment**:
 
   ```
   To use Codex here, create an environment for this repo.
   ```
 
-Der vierte kam erst zum Vorschein, als der dritte wegfiel, und das ist kein
-Zufall: Die Prüfungen liegen hintereinander. Dass es diese Reihenfolge ist und
-nicht die umgekehrte, lässt sich an einem einzigen Repo ablesen — in
+  Diese Meldung sagt nachweislich nicht, was sie behauptet — sie kam am
+  19.9.2026 auf einem Draft in einem Repo, in dem Codex kurz davor und kurz
+  danach vollständig durchlief. Der Nachtrag unten führt die Messung.
+
+Hier stand eine Ableitung über die **Reihenfolge** der Prüfungen: in
 `swiss-public-data-mcp` bekam PR #54 am 22.8. um 10:56:55 die Kontingent-Meldung
-und PR #56 am 23.8. um 08:22:20 die Environment-Meldung. Läge die
-Environment-Prüfung vorn, hätte #54 sie schon am Vortag gesehen; die Environment
-fehlte ja bereits. Zwei Meldungen aus demselben Repo schlagen hier jede
-Vermutung über die Reihenfolge.
+und PR #56 am 23.8. um 08:22:20 die Environment-Meldung; läge die
+Environment-Prüfung vorn, hätte #54 sie schon am Vortag gesehen. Das galt als
+gesichert, weil zwei Meldungen aus demselben Repo kamen.
+
+**Die Ableitung ist hinfällig**, seit die Environment-Meldung nicht mehr von
+der Environment handelt (Nachtrag unten). Sie kann bei #56 ebenso gut
+bedeutet haben, dass jener PR ein Draft war — dann vergleicht die Ableitung
+zwei Dinge, die nichts miteinander zu tun haben. Ob es eine Reihenfolge gibt
+und welche, ist damit **offen**; nachprüfen liesse es sich nur am Draft-Zustand
+von #56, und der wurde nie erhoben.
 
 Praktisch heisst das: **Eine verschwundene Limit-Meldung ist keine Entwarnung.**
 Sie kann bedeuten, dass das Kontingent wieder da ist — und dass jetzt etwas
-anderes den Review verhindert. Belegt ist eine Prüfung erst durch ein
-Review-Objekt **oder** eine Befundlos-Meldung. Wer nur das Objekt gelten lässt,
-zählt jeden befundlosen Review als ungeprüft — und baut sich denselben Fehlalarm
-ein, den dieser Abschnitt verhindern soll, nur in die andere Richtung.
+anderes den Review verhindert. Belegt ist eine Prüfung durch ein Review-Objekt,
+durch eine Befundlos-Meldung **oder** durch eine Statustabelle auf
+«✅ Completed» (die dritte Form kam am 19.9.2026 dazu, siehe unten). Wer nur
+das Objekt gelten lässt, zählt jeden befundlosen Review als ungeprüft — und
+baut sich denselben Fehlalarm ein, den dieser Abschnitt verhindern soll, nur in
+die andere Richtung. Wer umgekehrt «Completed» für «sauber» nimmt, verwechselt
+das Ende des Laufs mit seinem Ergebnis.
 
 «Kein Kommentar» heisst also nicht «geprüft und sauber». Unterscheiden lässt es
 sich an der Form: Ein Review **mit** Befund ist ein Review-Objekt
@@ -382,24 +397,40 @@ Das bricht zwei Annahmen gleichzeitig:
   fehlt angeblich die Environment. Eine Environment, die zehn Minuten zuvor
   gereicht hat, ist nicht plötzlich weg.
 
-Was daraus **nicht** folgt und hier bewusst offen bleibt: ob die Meldung in
-Wahrheit «auf einem Draft laufe ich nicht» bedeutet und bloss falsch
-beschriftet ist, ob ein zweiter Pfad die Environment anders auflöst, oder ob
-zwischen den beiden Zeitpunkten tatsächlich an der Konfiguration etwas geändert
-wurde. Drei Erklärungen, eine Beobachtung — das trägt keine davon.
+Beim ersten Aufschreiben standen hier drei mögliche Erklärungen und keine
+Entscheidung. Sieben Minuten später entschied **derselbe PR** die Sache, weil
+jemand ihn auf «ready» stellte:
 
-Praktisch: **Die Environment-Meldung ist kein Beleg, dass eine Environment
-fehlt.** Wer ihr folgt und eine anlegt, tut dasselbe wie der, der wegen
-«GitHub access is not enabled for this organization» einen Admin für ein
-Problem suchte, das keiner hatte. Erst die Positivkontrolle, die dieser
-Abschnitt ohnehin verlangt: lief im selben Repo kürzlich ein Review durch?
+```
+14:30:43  PR #59 als Draft angelegt
+14:30:53  «To use Codex here, create an environment for this repo.»
+14:37:30  Draft -> ready for review
+14:37:38  Codex startet ein Review auf 47b714e
+14:38:41  Codex meldet «Completed»
+```
 
-Und ein Rückschlag auf die Reihenfolge weiter oben. Sie wurde daraus
-abgeleitet, dass in `swiss-public-data-mcp` erst die Kontingent- und tags
-darauf die Environment-Meldung kam. Diese Ableitung setzt voraus, dass die
-Environment-Meldung von der Environment handelt. Genau das ist jetzt fraglich —
-die Reihenfolge steht damit nicht widerlegt, aber auf schwächerem Grund als
-beim Aufschreiben.
+Das ist ein Vorher-Nachher am selben Objekt, und Codex nennt den Auslöser in
+seiner eigenen Tabelle selbst: «Draft marked ready». Zwischen den beiden
+Meldungen hat niemand eine Environment angelegt — und #58 hatte zehn Minuten
+**vor** der Meldung bereits vollständig durchlaufen. Die Environment war
+vorher da, währenddessen und danach.
+
+Damit steht fest:
+
+- **Die Environment-Meldung ist kein Beleg, dass eine Environment fehlt.** Das
+  ist gemessen, nicht geschlossen. Wer ihr folgt und eine anlegt, tut dasselbe
+  wie der, der wegen «GitHub access is not enabled for this organization» einen
+  Admin für ein Problem suchte, das keiner hatte.
+- **Auf einem Draft ist sie das, was Codex stattdessen ausgibt.** Der
+  Draft-Zustand ist das Einzige, was sich zwischen Meldung und Review
+  planmässig änderte; dass daneben ein neuer Commit dazukam, erklärt keine
+  Environment.
+
+Was weiterhin **offen** ist: ob die Meldung *je* eine wirklich fehlende
+Environment meint. Eine Beobachtung zeigt, dass sie es nicht muss — nicht, dass
+sie es nie tut. Wer sie sieht, prüft deshalb zuerst zwei Dinge, bevor er etwas
+anlegt: Ist der PR ein Draft? Und lief im selben Repo kürzlich ein Review durch?
+Das ist die Positivkontrolle, die dieser Abschnitt ohnehin verlangt.
 
 Und ein befundloser Lauf ist kein Freispruch. Am 23.8. lief derselbe Text durch
 42 Reviews: 36 meldeten denselben P2-Befund, 6 die Befundlos-Meldung — gleiche
@@ -438,6 +469,12 @@ der Fall überhaupt erst durch die Statustabelle oben: Sie nennt den Auslöser
 Checklistenzeile «Codex-Review beantwortet oder behoben» war zum Merge-Zeitpunkt
 nicht erfüllbar, und kein Gate sagte das.
 
+Achtzehn Minuten später wiederholte sich derselbe Ablauf auf PR #59 aufs Haar:
+ready 14:37:30, Merge 14:37:34, Review-Start 14:37:38. Wieder vier Sekunden,
+wieder lief der Prüfer erst **nach** dem Merge an. Zweimal an einem Nachmittag
+ist kein Ausrutscher, sondern die Gewohnheit — und beide Reviews liefen
+vollständig durch, auf PRs, die da schon zu waren.
+
 Das Kontingent hängt am Konto, nicht am Repo, und Code-Reviews haben einen
 eigenen Topf — nur GitHub-getriggerte Reviews zählen hinein. ChatGPT-Pläne
 fahren ein rollendes Fünf-Stunden-Fenster plus Wochenlimits; welches greift,
@@ -453,11 +490,15 @@ das ein bekannter Fehler bei mehreren verbundenen Konten — dann den
 GitHub-Connector in den Codex-Einstellungen trennen und neu verbinden.
 
 Die Environment legt man unter `chatgpt.com/codex/cloud/settings/environments`
-an, und zwar **je Repo**. Die Meldung sagt es selbst («for this repo»), und am
-23.8. war es genau so: In `swiss-public-data-mcp` fehlte sie, dort kam kein
-Review; in den übrigen Repos lief Codex am selben Morgen durch. Eine
-Environment fürs Konto genügt also nicht — wer eine anlegt und den Rest für
-erledigt hält, mergt weiter Ungeprüftes.
+an, und zwar **je Repo**: Eine Environment fürs Konto genügt nicht — wer eine
+anlegt und den Rest für erledigt hält, mergt weiter Ungeprüftes.
+
+Hier stand als Beleg, am 23.8. habe in `swiss-public-data-mcp` die Environment
+gefehlt, während Codex in den übrigen Repos durchlief. Das stützte sich allein
+auf die Meldung, und die trägt es nicht mehr (Nachtrag oben). Dass dort kein
+Review kam, ist beobachtet; **warum**, ist es nicht. Vor dem Anlegen also erst
+in den Einstellungen nachsehen, was tatsächlich eingetragen ist, statt der
+Meldung zu glauben.
 
 ### Wenn zwei Agenten dasselbe tun
 
