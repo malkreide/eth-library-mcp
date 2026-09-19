@@ -10,13 +10,13 @@ as required by audit check `CH-004` (OGD-CH licence compliance).
 | API | Endpoint | Returned data | Licence |
 |---|---|---|---|
 | Discovery | `https://api.library.ethz.ch/discovery/v1` | Bibliographic metadata for books, journals, archival material, images, maps, scores, databases, audios, videos | Public Domain (CC0) |
-| Persons | `https://api.library.ethz.ch/persons/v1` *(BUG-02: currently 404)* | Person records with linked-data enrichment | Public Domain (CC0) |
 
-## Linked-data sources surfaced via the Persons API
+## Linked-data sources — no longer surfaced
 
-The Persons API enriches person records with identifiers from the
-following sources. These are present as links in tool output (e.g.
-`Wikidata`, `GND`) but not as primary data fields:
+These sources were reachable only through the Persons API, whose tool was
+removed in `0.4.0` (BUG-02: the API is absent from the gateway, not locked).
+No tool surfaces them today. The table is kept so the licence position stays
+on record should the API ever return:
 
 | Source | Identifier in output | Licence |
 |---|---|---|

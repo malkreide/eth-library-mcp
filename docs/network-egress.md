@@ -1,11 +1,12 @@
 # Network egress
 
 The server makes outbound HTTPS calls only to the hosts in
-`ALLOWED_EGRESS_HOSTS` (defined in `src/eth_library_mcp/server.py`):
+`ALLOWED_EGRESS_HOSTS` (defined in `src/eth_library_mcp/client.py`; re-exported
+from `server.py` for a stable import path):
 
 | Host | Used by | Purpose |
 |---|---|---|
-| `api.library.ethz.ch` | Discovery + Persons tools | All bibliographic and personal-record lookups |
+| `api.library.ethz.ch` | all 6 tools | Bibliographic lookups via the Discovery API |
 
 Every call goes through `_http_get()`, which calls `_check_egress_allowed()`
 before reaching the HTTP client. Any attempt to reach a host outside the

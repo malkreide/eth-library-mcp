@@ -2,7 +2,7 @@
 
 # 🏛️ eth-library-mcp
 
-![Version](https://img.shields.io/badge/version-0.3.4-blue)
+![Version](https://img.shields.io/badge/version-0.4.0-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -105,7 +105,7 @@ Try it immediately in Claude Desktop:
 
 | Variable | Description | Required |
 |---|---|---|
-| `ETH_LIBRARY_API_KEY` | API key for Discovery & Persons API | ✅ |
+| `ETH_LIBRARY_API_KEY` | API key for the Discovery API | ✅ |
 | `ETH_LIBRARY_LOG_LEVEL` | Log level (`DEBUG`/`INFO`/`WARNING`/`ERROR`), default `INFO` | — |
 | `ETH_LIBRARY_CORS_ORIGINS` | Comma-separated CORS allow-origins for `--http`. Empty by default: no browser client is permitted. `*` allows any origin and is logged as a warning. Does not affect stdio clients. | — |
 | `ETH_LIBRARY_ALLOWED_HOSTS` | Comma-separated hostnames this server is reachable under. Required for a non-loopback bind (`--host 0.0.0.0`): the process cannot derive its own public name, and without this the SDK answers **421 Invalid Host header** to every request. Empty by default; loopback stays reachable either way. | — |
@@ -164,11 +164,6 @@ python -m eth_library_mcp.server --http --host 0.0.0.0 --port 8000
 | `eth_search_archive` | Search within a specific archive (University Archives, Max Frisch, Thomas Mann, etc.) |
 | `eth_search_by_type` | Filter by resource type (books, maps, images, archival material, etc.) |
 | `eth_search_education` | Curated search for education topics (pedagogy, school history, etc.) |
-
-### Persons API
-
-| Tool | Description |
-|---|---|
 
 ### Utilities
 

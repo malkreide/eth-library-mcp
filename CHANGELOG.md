@@ -7,6 +7,48 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.0] – 2026-09-19
+
+Zwei brechende Aenderungen, beide bewusst: Die CORS-Wildcard ist gefallen, und
+ein Werkzeug ist verschwunden, weil die API dahinter verschwunden ist. Dazu die
+Protokollrevision `2026-07-28`, die jetzt nicht mehr nur bedient, sondern auch
+gemessen wird.
+
+### ⚠️ Brechende Aenderungen
+
+- **`allow_origins` ist nicht mehr `["*"]`.** Ohne gesetzte
+  `ETH_LIBRARY_CORS_ORIGINS` laesst der Server keine Browser-Origin mehr durch.
+  Wer den bisherigen Zustand behalten will, setzt die Variable ausdruecklich —
+  Einzelheiten unter «Geaendert».
+- **Das Werkzeug `eth_search_persons` ist entfernt.** Die Werkzeugliste
+  schrumpft von 7 auf 6. Kein Ersatz: Die Persons-API ist vom Gateway
+  verschwunden, nicht gesperrt. Einzelheiten unter «BUG-02 ist erledigt».
+
+### Geaendert — die Metadaten nennen keine entfernte API mehr
+
+- **Beschreibung in `pyproject.toml` und `server.json`.** Beide sagten
+  «Discovery **and Persons** APIs». Seit dem `serverInfo`-Eintrag oben geht die
+  `pyproject`-Beschreibung nicht mehr nur an PyPI, sondern haengt als
+  `description` an jeder Antwort der modernen Aera — der Server haette sich mit
+  diesem Release jedem Client mit einer Faehigkeit vorgestellt, die derselbe
+  Release entfernt. `server.json` haette dasselbe an die MCP-Registry gemeldet.
+
+- **Dieselbe Behauptung in der Dokumentation.** `SECURITY.md`/`.de` sprachen von
+  «alle 7 Tools» und trugen einen BUG-02-Hinweis, der das Werkzeug noch als
+  vorhanden, aber defekt beschrieb. `EXAMPLES.md` verwies fuer den
+  Anwendungsfall «nach Personen suchen» auf ein Werkzeug, das es nicht gibt —
+  dort steht jetzt der Ersatzweg (`eth_search_resources` mit
+  `creator,contains,<Name>`). Die READMEs fuehrten eine leere
+  Persons-Tabelle und nannten den API-Key fuer eine API, die nicht mehr
+  angesprochen wird. In `docs/` beschrieben Scope-, Datenquellen-, Egress- und
+  Architektur-Notiz die Persons-API als laufend.
+
+  Zwei Nebenbefunde beim Nachmessen: Die Egress-Allow-List bleibt unveraendert,
+  weil Discovery und Persons sich **denselben** Host `api.library.ethz.ch`
+  teilten — es gab keinen Persons-Eintrag zu streichen. Und
+  `docs/network-egress.md` nannte fuer `ALLOWED_EGRESS_HOSTS` die falsche Datei
+  (`server.py` statt `client.py`, seit dem Modul-Split von `0.3.0`).
+
 ### Behoben
 
 - **Der Server meldete allen Clients die leere Version `""`.** Spec `2026-07-28`

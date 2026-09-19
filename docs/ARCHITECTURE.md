@@ -81,8 +81,8 @@ Tracking issue: file before bumping to `0.3.x`.
   parsers.
 - Severity levels actually used in code:
   - `debug` — per-request URL + parameter dump
-  - `info`  — lifespan startup/shutdown, persons-no-results
-  - `warning` — Persons-API returned an unknown response structure
+  - `info`  — lifespan startup/shutdown, CORS configuration notice
+  - `warning` — CORS wildcard origin, DNS-rebinding protection disabled
   - `error` — unhandled exception class in `_handle_error`
 - `Context.info()` / `Context.warning()` are used in tool error paths so
   the MCP session sees the same signal that hits stderr (`SDK-003`).

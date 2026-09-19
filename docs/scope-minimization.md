@@ -13,7 +13,6 @@ A single `ETH_LIBRARY_API_KEY` is used for every outbound request.
 |---|---|---|
 | `discovery/v1/resources` | search + read bibliographic records | read-only |
 | `discovery/v1/resources/{mmsid}` | read single record | read-only |
-| `persons/v1/persons` | search person records | read-only |
 
 The upstream API is **read-only against Public Domain data**. The
 operator's quota is the only thing tied to the key, so further scoping

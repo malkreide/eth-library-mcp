@@ -2,7 +2,7 @@
 
 # 🏛️ eth-library-mcp
 
-![Version](https://img.shields.io/badge/version-0.3.4-blue)
+![Version](https://img.shields.io/badge/version-0.4.0-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -105,7 +105,7 @@ Sofort in Claude Desktop ausprobieren:
 
 | Variable | Beschreibung | Erforderlich |
 |---|---|---|
-| `ETH_LIBRARY_API_KEY` | API-Key für Discovery & Persons API | ✅ |
+| `ETH_LIBRARY_API_KEY` | API-Key für die Discovery API | ✅ |
 | `ETH_LIBRARY_LOG_LEVEL` | Log-Level (`DEBUG`/`INFO`/`WARNING`/`ERROR`), Standard `INFO` | — |
 | `ETH_LIBRARY_CORS_ORIGINS` | Kommaseparierte CORS-Allow-Origins für `--http`. Standardmässig leer: kein Browser-Client wird zugelassen. `*` erlaubt jede Origin und wird als Warnung protokolliert. Betrifft stdio-Clients nicht. | — |
 | `ETH_LIBRARY_ALLOWED_HOSTS` | Kommaseparierte Hostnamen, unter denen dieser Server erreichbar ist. Nötig bei Nicht-Loopback-Bind (`--host 0.0.0.0`): der Prozess kann seinen eigenen öffentlichen Namen nicht ableiten, und ohne die Variable antwortet das SDK auf jede Anfrage **421 Invalid Host header**. Standardmässig leer; Loopback bleibt in beiden Fällen erreichbar. | — |
@@ -165,11 +165,6 @@ python -m eth_library_mcp.server --http --host 0.0.0.0 --port 8000
 | `eth_search_archive` | Spezifisches Archiv durchsuchen (Hochschularchiv, Max Frisch, Thomas Mann, etc.) |
 | `eth_search_by_type` | Nach Ressourcentyp filtern (Bücher, Karten, Bilder, Archivmaterial, etc.) |
 | `eth_search_education` | Kuratierte Suche nach Bildungsthemen (Pädagogik, Schulgeschichte, etc.) |
-
-### Persons API
-
-| Tool | Beschreibung |
-|---|---|
 
 ### Hilfsmittel
 
