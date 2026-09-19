@@ -1,0 +1,722 @@
+{
+  "ARCH-001": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-002": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-003": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-004": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-005": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-006": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-007": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-008": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-009": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-010": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "write_capable == true",
+    "spec_baseline": "beide"
+  },
+  "ARCH-011": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-012": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-013": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "transport != \"stdio-only\"",
+    "spec_baseline": "beide"
+  },
+  "ARCH-014": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "ARCH-015": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "2026-07-28"
+  },
+  "ARCH-016": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "2026-07-28"
+  },
+  "ARCH-017": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "2026-07-28"
+  },
+  "ARCH-018": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "2026-07-28"
+  },
+  "ARCH-019": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "ARCH-020": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "2026-07-28"
+  },
+  "ARCH-021": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "2026-07-28"
+  },
+  "ARCH-022": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "CH-001": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "data_class != \"Public Open Data\"",
+    "spec_baseline": "beide"
+  },
+  "CH-002": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "data_class == \"PII\"",
+    "spec_baseline": "beide"
+  },
+  "CH-003": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "volksschule_context == true and data_class == \"PII\"",
+    "spec_baseline": "beide"
+  },
+  "CH-004": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "data_source.is_swiss_open_data == true",
+    "spec_baseline": "beide"
+  },
+  "CH-005": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "stadt_zuerich_context == true",
+    "spec_baseline": "beide"
+  },
+  "CH-006": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "schulamt_context == true",
+    "spec_baseline": "beide"
+  },
+  "CH-007": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "data_class != \"Public Open Data\"",
+    "spec_baseline": "beide"
+  },
+  "CH-008": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "data_class != \"Public Open Data\"",
+    "spec_baseline": "beide"
+  },
+  "DEP-001": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "DRIFT-001": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "DRIFT-002": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "DRIFT-003": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "DRIFT-004": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "DRIFT-005": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "DRIFT-006": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "DRIFT-008": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "FID-001": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "FID-002": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "FID-003": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "FID-004": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "FID-005": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "FID-006": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "FID-007": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "HITL-001": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "uses_sampling == true",
+    "spec_baseline": "beide"
+  },
+  "HITL-002": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "uses_sampling == true",
+    "spec_baseline": "beide"
+  },
+  "HITL-003": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "data_class != \"Public Open Data\" and uses_sampling == true",
+    "spec_baseline": "beide"
+  },
+  "HITL-004": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "uses_sequential_thinking == true",
+    "spec_baseline": "beide"
+  },
+  "HITL-005": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "write_capable == true",
+    "spec_baseline": "beide"
+  },
+  "HITL-006": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "2026-07-28"
+  },
+  "IDENT-001": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "IDENT-002": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "IDENT-003": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "IDENT-004": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "IDENT-005": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "sdk_language == \"Python\"",
+    "spec_baseline": "beide"
+  },
+  "IDENT-006": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "IDENT-007": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OBS-001": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OBS-002": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OBS-003": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OBS-004": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "transport == \"stdio-only\" or transport == \"dual\"",
+    "spec_baseline": "beide"
+  },
+  "OBS-005": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "is_cloud_deployed == true and data_class != \"Public Open Data\"",
+    "spec_baseline": "beide"
+  },
+  "OBS-006": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "is_cloud_deployed == true",
+    "spec_baseline": "beide"
+  },
+  "OBS-007": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "OBS-008": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OPS-001": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OPS-002": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OPS-003": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OPS-004": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OPS-005": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OPS-006": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OPS-007": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OPS-008": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "OPS-009": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "OPS-010": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "SCALE-001": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "deployment.includes(\"Railway\") or deployment.includes(\"Render\") or deployment.includes(\"andere\")",
+    "spec_baseline": "beide"
+  },
+  "SCALE-002": {
+    "applicable": false,
+    "reason": "baseline-mismatch: check is 2025-11-25-only, profile speaks 2026-07-28",
+    "expression": "transport == \"HTTP/SSE\" or transport == \"dual\"",
+    "spec_baseline": "2025-11-25"
+  },
+  "SCALE-003": {
+    "applicable": false,
+    "reason": "baseline-mismatch: check is 2025-11-25-only, profile speaks 2026-07-28",
+    "expression": "(transport == \"HTTP/SSE\" or transport == \"dual\") and is_cloud_deployed == true",
+    "spec_baseline": "2025-11-25"
+  },
+  "SCALE-004": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "is_cloud_deployed == true",
+    "spec_baseline": "beide"
+  },
+  "SCALE-005": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "enterprise_context == true or stadt_zuerich_context == true",
+    "spec_baseline": "beide"
+  },
+  "SCALE-006": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "is_cloud_deployed == true",
+    "spec_baseline": "beide"
+  },
+  "SCALE-007": {
+    "applicable": false,
+    "reason": "baseline-mismatch: check is 2025-11-25-only, profile speaks 2026-07-28",
+    "expression": "(transport == \"HTTP/SSE\" or transport == \"dual\") and is_cloud_deployed == true",
+    "spec_baseline": "2025-11-25"
+  },
+  "SCALE-008": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "transport != \"stdio-only\"",
+    "spec_baseline": "2026-07-28"
+  },
+  "SCALE-009": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "transport != \"stdio-only\"",
+    "spec_baseline": "beide"
+  },
+  "SCALE-010": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "transport != \"stdio-only\"",
+    "spec_baseline": "2026-07-28"
+  },
+  "SDK-001": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "sdk_language == \"Python\"",
+    "spec_baseline": "beide"
+  },
+  "SDK-002": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "sdk_language == \"Python\"",
+    "spec_baseline": "beide"
+  },
+  "SDK-003": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "sdk_language == \"Python\"",
+    "spec_baseline": "beide"
+  },
+  "SDK-004": {
+    "applicable": false,
+    "reason": "baseline-mismatch: check is 2025-11-25-only, profile speaks 2026-07-28",
+    "expression": "sdk_language == \"Python\" and (transport == \"HTTP/SSE\" or transport == \"dual\")",
+    "spec_baseline": "2025-11-25"
+  },
+  "SDK-005": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "sdk_language == \"TypeScript\"",
+    "spec_baseline": "beide"
+  },
+  "SDK-006": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "sdk_language == \"Python\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-001": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "auth_model == \"OAuth-Proxy\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-002": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "auth_model == \"OAuth-Proxy\" or auth_model == \"API-Key\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-003": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "auth_model != \"none\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-004": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "SEC-005": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  },
+  "SEC-006": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "deployment.includes(\"local-stdio\")",
+    "spec_baseline": "beide"
+  },
+  "SEC-007": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "deployment.includes(\"local-stdio\") or deployment.includes(\"Railway\") or deployment.includes(\"Render\")",
+    "spec_baseline": "beide"
+  },
+  "SEC-008": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "deployment.includes(\"local-stdio\")",
+    "spec_baseline": "beide"
+  },
+  "SEC-009": {
+    "applicable": false,
+    "reason": "baseline-mismatch: check is 2025-11-25-only, profile speaks 2026-07-28",
+    "expression": "transport != \"stdio-only\"",
+    "spec_baseline": "2025-11-25"
+  },
+  "SEC-010": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "auth_model == \"OAuth-Proxy\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-011": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "auth_model == \"OAuth-Proxy\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-012": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "auth_model == \"OAuth-Proxy\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-013": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "auth_model == \"API-Key\" or always",
+    "spec_baseline": "beide"
+  },
+  "SEC-014": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "enterprise_context == true or stadt_zuerich_context == true or is_cloud_deployed == true",
+    "spec_baseline": "beide"
+  },
+  "SEC-015": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "enterprise_context == true or stadt_zuerich_context == true or is_cloud_deployed == true",
+    "spec_baseline": "beide"
+  },
+  "SEC-016": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "transport != \"stdio-only\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-017": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "tools_include_filesystem == true",
+    "spec_baseline": "beide"
+  },
+  "SEC-018": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "SEC-019": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "SEC-020": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "always",
+    "spec_baseline": "beide"
+  },
+  "SEC-021": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true or is_cloud_deployed == true",
+    "spec_baseline": "beide"
+  },
+  "SEC-022": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "enterprise_context == true or stadt_zuerich_context == true or is_cloud_deployed == true",
+    "spec_baseline": "beide"
+  },
+  "SEC-023": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "data_class != \"Public Open Data\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-024": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "transport != \"stdio-only\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-025": {
+    "applicable": false,
+    "reason": "no-match",
+    "expression": "auth_model == \"OAuth-Proxy\"",
+    "spec_baseline": "2026-07-28"
+  },
+  "SEC-026": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "auth_model != \"none\"",
+    "spec_baseline": "beide"
+  },
+  "SEC-027": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "transport != \"stdio-only\" or tools_make_external_requests == true",
+    "spec_baseline": "2026-07-28"
+  },
+  "SEC-028": {
+    "applicable": true,
+    "reason": "match",
+    "expression": "tools_make_external_requests == true",
+    "spec_baseline": "beide"
+  }
+}
