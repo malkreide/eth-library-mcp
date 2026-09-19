@@ -9,6 +9,54 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Behoben
 
+- **Der Server meldete allen Clients die leere Version `""`.** Spec `2026-07-28`
+  stempelt den `Implementation`-Block in **jedes** Resultat der modernen Aera
+  (`_meta.io.modelcontextprotocol/serverInfo`, spec #3002); die Revisionen davor
+  fuehrten ihn nur im `initialize`-Resultat. Aus einem einmaligen Feld wurde
+  damit eine Angabe, die bei jedem Aufruf wiederholt wird — und `version` ist im
+  `Implementation` dieser Revision ein **Pflichtfeld**.
+
+  Das SDK setzt nichts ein und sagt es selbst
+  (`mcp/server/lowlevel/server.py::server_info`):
+
+  ```
+  An unversioned server reports an empty `version`;
+  the SDK never substitutes its own.
+  ```
+
+  Gemessen am zusammengebauten ASGI-Stack, vorher:
+
+  ```
+  modern  server/discover -> _meta.serverInfo = {"name": "eth_library_mcp", "version": ""}
+  legacy  initialize      ->       serverInfo = {"name": "eth_library_mcp", "version": ""}
+  ```
+
+  In beiden Aeren, bei jedem Aufruf — waehrend `server.json` der Registry
+  `0.3.4` meldete. Das Manifest sagte mehr ueber diesen Server aus als der
+  Server selbst.
+
+  Neu deklariert `MCPServer` `version`, `title`, `description` und
+  `website_url`. Drei der vier Werte kommen aus den Paket-Metadaten
+  (`importlib.metadata`) und koennen deshalb nicht von `pyproject.toml`
+  wegdriften — dieselbe Begruendung wie bei `__version__`, mit dem Unterschied,
+  dass `scripts/check_version_sync.py` ausschliesslich Zahlen synchron haelt und
+  eine handgepflegte Beschreibung in `src/` also gar kein Gate haette. `title`
+  ist der einzige Wert ohne Quelle ausserhalb: `name` ist der programmatische
+  Bezeichner, `title` der Anzeigename fuer Menschen.
+
+  `icons` bleibt ungesetzt — das Repo fuehrt keine, und ein erfundener Pfad
+  waere eine Zusicherung ueber eine Datei, die es nicht gibt.
+
+  Gefunden hat es keine der bestehenden Suiten, und zwar aus einem benennbaren
+  Grund: `tests/test_protocol_version.py` fuhr ausschliesslich
+  `initialize`-Anfragen. Die moderne Aera, die die README seit zwei Fassungen
+  als bedient auswies, war damit **nie** gemessen worden — der Stempel, den nur
+  sie traegt, konnte gar nicht auffallen. `tests/test_server_identity.py` fuehrt
+  jetzt einen echten modernen POST durch `build_http_app()`, samt
+  Negativkontrolle gegen einen `MCPServer` ohne Identitaet: faellt sie, setzt
+  das SDK inzwischen selbst eine Version ein und die uebrigen Zusicherungen
+  messen nicht mehr diesen Server.
+
 - **`ETH_LIBRARY_CORS_ORIGINS` war wirkungslos.** Die Variable wurde eine
   Version zuvor eingeführt, konnte aber nicht tun, was sie versprach:
   `build_http_app` übergab weder `transport_security=` noch `host=`. Das ist
