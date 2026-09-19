@@ -247,8 +247,9 @@ In der Zwischenzeit sind 32 PRs mit formal erfülltem Häkchen gemergt worden,
 ohne dass jemand hineingesehen hat, und am 22.8. noch einmal 43.
 
 **Vier** Gründe, warum kein Review-Objekt erscheint, und nur einer davon ist
-harmlos. «Schweigen» hiess es hier, bis am 19.9.2026 auffiel, dass drei der
-vier sehr wohl etwas schreiben — nur eben keinen Review:
+harmlos. «Schweigen» hiess es hier, bis am 19.9.2026 auffiel, dass sie sehr
+wohl etwas schreiben können — nur eben keinen Review. Beim Draft auch das nur
+manchmal:
 
 - **Kein Befund** — dann schreibt er einen gewöhnlichen Issue-Kommentar:
 
@@ -261,9 +262,10 @@ vier sehr wohl etwas schreiben — nur eben keinen Review:
   Infokasten, den Codex unter jeden Review setzt, behauptet weiterhin eine
   Reaktion («otherwise it will react with 👍») — am 23.8. kam in sechs Repos
   die Meldung und in keinem die Reaktion. Der Kasten ist keine Quelle.
-- **Der PR ist ein Draft** — darauf läuft Codex nicht an. Er schweigt dabei
-  aber nicht, sondern schreibt die Environment-Meldung unten. Siehe den
-  Nachtrag.
+- **Der PR ist ein Draft** — darauf läuft Codex nicht an. Ob er dabei
+  schweigt oder die Environment-Meldung unten schreibt, ist unvorhersehbar:
+  am 19.9.2026 bekam ein Draft sie nach zehn Sekunden, der nächste desselben
+  Repos gar nichts. Siehe den Nachtrag.
 - **Das Kontingent ist weg** — dann schreibt er die Meldung oben.
 - **Angeblich fehlt für das Repo eine Environment**:
 
@@ -304,8 +306,10 @@ sich an der Form: Ein Review **mit** Befund ist ein Review-Objekt
 beiden Ausfallmeldungen — Kontingent wie Environment — sind gewöhnliche
 Issue-Kommentare und trennen sich nur im Text. Beim Draft läuft Codex nicht
 an; ein kommentarloser Draft ist deshalb kein Beleg, sondern ein nicht
-durchgeführter Test. Hier stand «Beim Draft gibt es überhaupt nichts» — das ist
-zu stark, siehe den Nachtrag unten.
+durchgeführter Test — und ein Draft *mit* Kommentar ebenso wenig, wenn es die
+Environment-Meldung ist. Hier stand «Beim Draft gibt es überhaupt nichts»; das
+war zu stark, und die Gegenfassung «dann kommt die Environment-Meldung» ebenso.
+Siehe den Nachtrag unten.
 
 Das sind verschiedene Abfragen — `get_reviews` fürs Objekt, `get_comments` für
 alles andere; wer nur eine nimmt, übersieht den Rest. Genau so ist die
@@ -421,16 +425,26 @@ Damit steht fest:
   ist gemessen, nicht geschlossen. Wer ihr folgt und eine anlegt, tut dasselbe
   wie der, der wegen «GitHub access is not enabled for this organization» einen
   Admin für ein Problem suchte, das keiner hatte.
-- **Auf einem Draft ist sie das, was Codex stattdessen ausgibt.** Der
-  Draft-Zustand ist das Einzige, was sich zwischen Meldung und Review
-  planmässig änderte; dass daneben ein neuer Commit dazukam, erklärt keine
-  Environment.
+Hier stand daraufhin: «Auf einem Draft ist sie das, was Codex stattdessen
+ausgibt.» **Das hat siebzehn Minuten gehalten.** PR #60 desselben Repos, am
+selben Tag um 14:47:14 ebenfalls als Draft angelegt, bekam über 32 Minuten
+**gar keinen** Kommentar — keine Environment-Meldung, nichts. Der Draft-Zustand
+erzeugt die Meldung also nicht zuverlässig; #59 bekam sie nach zehn Sekunden,
+#60 nie.
 
-Was weiterhin **offen** ist: ob die Meldung *je* eine wirklich fehlende
-Environment meint. Eine Beobachtung zeigt, dass sie es nicht muss — nicht, dass
-sie es nie tut. Wer sie sieht, prüft deshalb zuerst zwei Dinge, bevor er etwas
-anlegt: Ist der PR ein Draft? Und lief im selben Repo kürzlich ein Review durch?
-Das ist die Positivkontrolle, die dieser Abschnitt ohnehin verlangt.
+Was weiterhin **offen** ist, jetzt in zwei Richtungen:
+
+- Ob die Meldung *je* eine wirklich fehlende Environment meint. Eine
+  Beobachtung zeigt, dass sie es nicht muss — nicht, dass sie es nie tut.
+- Warum #59 sie bekam und #60 nicht. Ein erschöpftes Kontingent ist ein
+  Kandidat, erklärt aber das Schweigen schlecht: dafür gibt es eine eigene
+  Meldung.
+
+Praktisch bleibt davon das Robuste: Ein Draft kann schweigen **oder** die
+Environment-Meldung bekommen, und keines von beidem ist ein Beleg, dass geprüft
+wurde. Wer die Meldung sieht, prüft vor dem Anlegen einer Environment zuerst,
+ob im selben Repo kürzlich ein Review durchlief — die Positivkontrolle, die
+dieser Abschnitt ohnehin verlangt.
 
 Und ein befundloser Lauf ist kein Freispruch. Am 23.8. lief derselbe Text durch
 42 Reviews: 36 meldeten denselben P2-Befund, 6 die Befundlos-Meldung — gleiche
