@@ -1,0 +1,18 @@
+{
+  "status": "partial",
+  "category": "SCALE",
+  "severity": "high",
+  "evidence": [
+    "Kein Legacy-Pfad im Code: `grep -rnE 'sse_app|SseServerTransport|/sse|text/event-stream|EventSourceResponse' src/ --include='*.py'` liefert 0 Treffer. Negative Kontrolle: dasselbe Muster gegen das installierte SDK findet mcp/server/sse.py und mcp/server/mcpserver/server.py — es greift also",
+    "GEMESSEN an der zusammengebauten App: `build_http_app().routes` enthaelt genau eine Route, `('/mcp', [])`. Kein zweiter Transportpfad",
+    "GEMESSEN am laufenden Stack: `GET /sse` mit `Accept: text/event-stream` -> HTTP 404; `POST /sse` mit vollstaendigem modernen Envelope -> HTTP 404",
+    "GEGENPROBE gefuehrt (vom Check ausdruecklich verlangt): derselbe Aufruf gegen einen Server MIT offenem SSE-Pfad — `MCPServer('probe').sse_app()` hat die Routen `['/sse', '/messages']`, und `GET /sse` bleibt dort als langlebiger text/event-stream-Strom offen statt 404 zu liefern. Die 404 oben ist damit eine Messung und kein Tippfehler in der URL",
+    "Deployment-Konfiguration ohne Legacy-Route: Dockerfile ENTRYPOINT/CMD ist `python -m eth_library_mcp.server --http --host 0.0.0.0 --port 8000`, server.json:15-18 deklariert `\"transport\": {\"type\": \"stdio\"}`, claude_desktop_config.json startet stdio. Es gibt keine Ingress-/Compose-Datei mit einer /sse-Route (`find . -name 'docker-compose*' -o -name 'ingress*'` leer)",
+    "BEFUND README.md:53 und README.de.md:53 — «Dual transport – stdio for Claude Desktop, Streamable HTTP/SSE for cloud deployment». Dazu README.md:133 und README.de.md:133 als eigener Abschnitt «Cloud Deployment (SSE for browser access)» bzw. «Cloud-Deployment (SSE fuer Browser-Zugriff)». Das README fuehrt SSE als gleichwertigen ausgelieferten Transport, obwohl gemessen keiner existiert"
+  ],
+  "gaps": [
+    "Das README nennt SSE als unterstuetzten Transport (4 Stellen in beiden Sprachfassungen). Wer danach deployt, sucht einen Endpunkt, den es nicht gibt — und wer den Check spaeter wiederholt, liest die Doku als Beleg fuer einen offenen Legacy-Pfad, den der Code nicht hat. Der Abschnittstitel «Cloud Deployment (SSE …)» beschreibt tatsaechlich Streamable HTTP",
+    "Kein Abschaltdatum im CHANGELOG — hier folgerichtig, weil nichts offen ist, aber damit auch kein Nachweis, wann der Pfad geschlossen wurde",
+    "Gemessen wurde am lokal zusammengebauten ASGI-Stack; eine ausgelieferte HTTP-Instanz existiert nicht (Deployment local-stdio), der Punkt «an der ausgelieferten Instanz geprueft» ist damit so weit erfuellt, wie er hier erfuellbar ist"
+  ]
+}
