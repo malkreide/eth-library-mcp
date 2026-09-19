@@ -287,9 +287,10 @@ ein, den dieser Abschnitt verhindern soll, nur in die andere Richtung.
 sich an der Form: Ein Review **mit** Befund ist ein Review-Objekt
 («💡 Codex Review», mit Commit-Angabe); ein Review **ohne** Befund und die
 beiden Ausfallmeldungen — Kontingent wie Environment — sind gewöhnliche
-Issue-Kommentare und trennen sich nur im Text. Beim Draft gibt es überhaupt
-nichts, weil Codex nicht anläuft; ein kommentarloser Draft ist deshalb kein
-Beleg, sondern ein nicht durchgeführter Test.
+Issue-Kommentare und trennen sich nur im Text. Beim Draft läuft Codex nicht
+an; ein kommentarloser Draft ist deshalb kein Beleg, sondern ein nicht
+durchgeführter Test. Hier stand «Beim Draft gibt es überhaupt nichts» — das ist
+zu stark, siehe den Nachtrag unten.
 
 Das sind verschiedene Abfragen — `get_reviews` fürs Objekt, `get_comments` für
 alles andere; wer nur eine nimmt, übersieht den Rest. Genau so ist die
@@ -302,6 +303,103 @@ Und einen unbekannten vierten Text wörtlich zitieren, statt ihn in eine der
 bekannten Schubladen zu zwingen: Dieser Abschnitt musste schon einmal von drei
 auf vier Gründe wachsen, und die 👍-Reaktion stand hier zwei Fassungen lang als
 Tatsache.
+
+**Und eine fünfte Form, die keinen Ausgang meldet, sondern einen Zustand.** Am
+19.9.2026 setzte Codex auf PR #58 dieses Repos einen Kommentar, für den es
+keine der vier Schubladen gibt — eine Statustabelle, die er *in place*
+fortschreibt:
+
+```
+<!-- codex-pull-request-review-summary -->
+## Codex Review Summary
+This comment shows the latest Codex review activity on this pull request.
+
+| Review | Status | Commit | Review trigger |
+| --- | --- | --- | --- |
+| 📝 **Code Review** | 🔄 **Running** since 2026-09-19T14:19:24Z | `55b801f` | Draft marked ready |
+```
+
+Eine Minute später stand in derselben Zeile:
+
+```
+| 📝 **Code Review** | ✅ **Completed** 2026-09-19T14:20:27Z | `55b801f` | Draft marked ready |
+```
+
+Gemessen, nicht geschlossen — der Kommentar sagt selbst, er zeige «the latest
+activity», aber das ist seine Behauptung und nicht die Messung: gleiche `id`
+(`5742595164`), `created_at` unverändert bei 14:19:28, `updated_at` gewandert
+auf 14:20:28. Er wird überschrieben, nicht ergänzt.
+
+Damit bekommt der Absatz oben zwei weitere Bedeutungen: `comments: 1` kann
+jetzt auch «läuft noch» heissen — und zwar unter **derselben** Zahl wie
+«fertig», weil der Zähler sich beim Wechsel nicht bewegt. Das ist die
+gefährlichste der Bedeutungen, weil sie nach einem Ergebnis aussieht und keines
+ist. Wer den Zähler liest, sieht den Unterschied nie; wer den Text liest, muss
+die **Statusspalte** lesen und nicht bloss die Überschrift — die lautet in
+beiden Fällen «Codex Review Summary».
+
+Und «Completed» heisst **nicht** «befundlos». Es sagt, dass der Lauf zu Ende
+ist, nicht wie er ausging. Der Befund stünde weiterhin im Review-Objekt;
+`get_reviews` war hier über beide Messungen leer, also gab es keinen.
+
+Was diese eine Beobachtung **nicht** hergibt, und hier ausdrücklich nicht
+behauptet wird: ob die Zusammenfassung die bekannte Befundlos-Meldung
+(«Didn't find any major issues. Swish!») ersetzt, oder ob sie bloss fehlte,
+weil der PR beim Lauf schon geschlossen war. Ein einzelner Lauf auf einem
+gemergten PR trägt diese Verallgemeinerung nicht. Ebenso offen, ob Kontingent-
+und Environment-Ausfall künftig als Status in dieser Tabelle erscheinen statt
+als eigener Kommentar — dann wären es nicht fünf Formen, sondern eine mit fünf
+Zuständen.
+
+Der Infokasten hat derweil seinen Text gewechselt. Er lautet jetzt:
+
+```
+Codex reacts with 👀 while any review is running, comments if it has
+suggestions, and reacts with 👍 once all reviews finish with no findings.
+```
+
+Neu nennt er einen dritten Auslöser: einen Kommentar «@codex review» bzw.
+«@codex security review». An der Reaktionsbehauptung ändert der neue Wortlaut
+nichts — der Reaktionszähler stand bei beiden Messungen auf 0, beim laufenden
+wie beim beendeten Review. Der Kasten bleibt keine Quelle.
+
+**Nachtrag desselben Tages: der Draft schweigt doch nicht — und die
+Environment-Meldung heisst nicht, was sie sagt.** Zehn Minuten nach dem Lauf
+oben bekam PR #59 dieses Repos, ein **Draft**, zehn Sekunden nach dem Anlegen
+genau eine Meldung:
+
+```
+To use Codex here, create an environment for this repo.
+```
+
+Das bricht zwei Annahmen gleichzeitig:
+
+- **Ein Draft bekommt sehr wohl etwas.** Nur eben kein Review. Die praktische
+  Folge bleibt — ein Draft ist ein nicht durchgeführter Test —, aber sie folgt
+  jetzt aus dem Inhalt der Meldung statt aus ihrem Ausbleiben.
+- **Die Meldung kann nicht heissen, was sie behauptet.** Für *dasselbe Repo*
+  lief um 14:19–14:20 ein vollständiger Review durch («Completed»); um 14:30
+  fehlt angeblich die Environment. Eine Environment, die zehn Minuten zuvor
+  gereicht hat, ist nicht plötzlich weg.
+
+Was daraus **nicht** folgt und hier bewusst offen bleibt: ob die Meldung in
+Wahrheit «auf einem Draft laufe ich nicht» bedeutet und bloss falsch
+beschriftet ist, ob ein zweiter Pfad die Environment anders auflöst, oder ob
+zwischen den beiden Zeitpunkten tatsächlich an der Konfiguration etwas geändert
+wurde. Drei Erklärungen, eine Beobachtung — das trägt keine davon.
+
+Praktisch: **Die Environment-Meldung ist kein Beleg, dass eine Environment
+fehlt.** Wer ihr folgt und eine anlegt, tut dasselbe wie der, der wegen
+«GitHub access is not enabled for this organization» einen Admin für ein
+Problem suchte, das keiner hatte. Erst die Positivkontrolle, die dieser
+Abschnitt ohnehin verlangt: lief im selben Repo kürzlich ein Review durch?
+
+Und ein Rückschlag auf die Reihenfolge weiter oben. Sie wurde daraus
+abgeleitet, dass in `swiss-public-data-mcp` erst die Kontingent- und tags
+darauf die Environment-Meldung kam. Diese Ableitung setzt voraus, dass die
+Environment-Meldung von der Environment handelt. Genau das ist jetzt fraglich —
+die Reihenfolge steht damit nicht widerlegt, aber auf schwächerem Grund als
+beim Aufschreiben.
 
 Und ein befundloser Lauf ist kein Freispruch. Am 23.8. lief derselbe Text durch
 42 Reviews: 36 meldeten denselben P2-Befund, 6 die Befundlos-Meldung — gleiche
@@ -323,6 +421,22 @@ mergen. Am 21./22.8. lagen zwischen «ready for review» und Merge mehrfach drei
 bis fünf Sekunden. Codex wird beim Umschalten von Draft auf ready ausgelöst und
 braucht danach Zeit; wer sofort mergt, hat das Häkchen gesetzt und den Review
 nicht abgewartet.
+
+Am 19.9.2026 war derselbe Wettlauf auf PR #58 auf die Sekunde nachmessbar:
+
+```
+14:19:17  Draft -> ready for review
+14:19:21  PR gemergt
+14:19:24  Codex startet das Review
+14:20:27  Codex meldet «Completed»
+```
+
+Der Prüfer lief **drei Sekunden nach dem Merge** an und war siebzig Sekunden
+nach dem Umschalten fertig — auf einem PR, der da längst zu war. Sichtbar wird
+der Fall überhaupt erst durch die Statustabelle oben: Sie nennt den Auslöser
+(«Draft marked ready») und beide Zeitpunkte, der PR selbst nur den Merge. Die
+Checklistenzeile «Codex-Review beantwortet oder behoben» war zum Merge-Zeitpunkt
+nicht erfüllbar, und kein Gate sagte das.
 
 Das Kontingent hängt am Konto, nicht am Repo, und Code-Reviews haben einen
 eigenen Topf — nur GitHub-getriggerte Reviews zählen hinein. ChatGPT-Pläne
@@ -377,15 +491,32 @@ wie der Code: Nichts ist rot, weil nichts geprüft wird, worauf es ankommt.
 
 ### ruff-Version
 
-**`ruff==0.16.3`**, gepinnt an genau einer Stelle: im `dev`-Extra von
+**`ruff==0.16.5`**, gepinnt an genau einer Stelle: im `dev`-Extra von
 `pyproject.toml`. Die CI installiert von dort und pinnt nicht selbst
 nach. Eine `.pre-commit-config.yaml` gibt es nicht.
+
+Die Zahl in diesem Satz ist die am häufigsten verrottete Angabe der Datei. Am
+19.9.2026 stand hier `0.16.3`, im Docstring von
+`tests/test_werkzeug_versionen.py` `0.16.1`, gepinnt war `0.16.4` — drei
+Stellen, drei Antworten. Beim Nachziehen auf `0.16.4` kam, noch vor dem Commit,
+Dependabot-PR #57 dazwischen und hob den Pin auf `0.16.5`: **derselbe Satz war
+innerhalb einer Stunde zweimal falsch.** Wer hier eine Zahl von Hand pflegt,
+pflegt sie gegen einen Bot, der schneller ist.
+
+Deshalb vergleicht `test_die_claude_md_nennt_den_gepinnten_ruff` sie jetzt. Er
+liest **nur** die fettgesetzte Form oben (`**\`ruff==X.Y.Z\`**`) — die
+historischen Zahlen im Absatz stehen bewusst in einfachen Backticks und sollen
+stehen bleiben, sonst löschte das Gate die Beweise für seine eigene
+Notwendigkeit.
 
 `pip install -e ".[dev]"` liefert damit lokal dieselbe ruff-Version wie die
 CI. Keinen zweiten Pin einbauen — zwei Pins driften auseinander, und dann
 weicht der lokale Lauf wieder still von der CI ab.
-`tests/test_werkzeug_versionen.py` hält das fest, statt es zu behaupten: Der
-Absatz hier kann nicht umfallen, der Test schon. Er kennt dabei alle gängigen
+`tests/test_werkzeug_versionen.py` hält das fest, statt es zu behaupten. Hier
+stand zwei Fassungen lang «Der Absatz hier kann nicht umfallen, der Test
+schon» — und umgefallen ist der Absatz, weil der Test bis dahin nur die
+*Struktur* prüfte (genau ein Pin, kein Workflow mit einem zweiten) und die Zahl
+gar nicht ansah. Beides ist jetzt gegatet. Der Test kennt dabei alle gängigen
 Installationsformen (`--upgrade`, Anführungszeichen, `pip3`,
 `uv tool install`, `uv run --with`) und beide Workflow-Endungen; eine engere
 Fassung war grün, weil sie nicht hinsah.
