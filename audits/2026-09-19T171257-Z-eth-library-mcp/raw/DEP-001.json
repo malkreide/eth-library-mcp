@@ -1,0 +1,21 @@
+{
+  "status": "pass",
+  "category": "DEP",
+  "severity": "high",
+  "evidence": [
+    "Modus 1, vollstaendig eingeordnet statt nur gelistet: pyproject.toml:28-33 fuehrt VIER Laufzeit-Abhaengigkeiten, alle mit beiden Enden — `mcp[cli]>=2.0.0,<3` (:29), `httpx>=0.27.0,<1.0.0` (:30), `pydantic>=2.0.0,<3.0.0` (:31), `structlog>=24.0.0,<27.0.0` (:32). KEINE offene Range. Es gibt nur ein Manifest im Repo (`find . -name pyproject.toml` -> ./pyproject.toml)",
+    "Modus 2 — jede der vier traegt tatsaechlich Importe aus ihren Modulpfaden, gehoert also nach Frage 1 gedeckelt: `mcp.server.mcpserver`/`mcp.server.caching` (server.py:33-34), `mcp_types` (Teil derselben Distribution, tests/test_server_identity.py:34), `pydantic` (server.py:35), `httpx` (client.py:17, formatting.py:13), `structlog` ueber logging_config.py. Keine Abhaengigkeit liegt hinter einer eigenen Schnittstelle, keine ist unnoetig gedeckelt",
+    "Keine exakte Pinnung in den Laufzeit-Abhaengigkeiten. Die einzige `==`-Zeile ist pyproject.toml:44 `ruff==0.16.5` im `dev`-Extra; sie ist keine Laufzeit-Abhaengigkeit der publizierten Distribution und in pyproject.toml:41-43 sowie CLAUDE.md begruendet (identische Version wie die CI, genau ein Pin)",
+    "Modus 4a gemessen: die vom jeweiligen Cap erlaubten hoechsten Versionen sind installiert, importiert und gegen die Suite gefahren — gemessen `version()` -> mcp 2.2.0, httpx 0.28.1, pydantic 2.13.5, structlog 26.1.0; `PYTHONPATH=src pytest tests/ -m \"not live\"` -> 128 passed, 2 deselected. `<27` bei structlog ist damit eine Messung (26.1.0 laeuft), keine runde Zahl",
+    "Modus 3 gemessen: Aufloesung der publizierten Distribution in einer LEEREN venv (`pip install --no-cache-dir --dry-run --report` gegen /home/user/eth-library-mcp) ergibt genau dieselben Majors — mcp 2.2.0, mcp-types 2.2.0, httpx 0.28.1, pydantic 2.13.5, structlog 26.1.0. Kein Lockfile im Repo, also keine Drift zwischen Lock und Manifest moeglich (`ls` zeigt weder uv.lock noch poetry.lock)",
+    "Modus 4b (Gegenversuch) gefuehrt, mit dem Ergebnis «Wirkung heute ungeprueft»: `pip index versions` gegen den Index liefert als LATEST mcp 2.2.0, httpx 0.28.1, pydantic 2.13.5, structlog 26.1.0 — jede davon liegt UNTER ihrem Cap. Heute haelt also keiner der vier Deckel etwas ab, was der Resolver nicht ohnehin tun wuerde. Das ist kein Fehler der Deckel und kein Grund, sie zu entfernen, aber es ist auch kein Beleg ihrer Wirksamkeit, und es steht hier so",
+    "Anhebungsprozess vorhanden: .github/dependabot.yml deklariert drei Oekosysteme (pip, github-actions, docker), je `interval: monthly`, `open-pull-requests-limit: 5`, mit Gruppierung. Der Kommentar dort begruendet zusaetzlich, warum `labels:` bewusst fehlt. Der Deckel ist damit eine Verzoegerung mit Ende, keine dauerhafte Einfrierung",
+    "Abgrenzung zu SDK-006 gewahrt: der Befund «Bound am neuen Major verankert» ist dort verbucht, hier ausschliesslich die Existenz der zweiten Schranke ueber ALLE vier Abhaengigkeiten. Kein Befund doppelt gezaehlt"
+  ],
+  "gaps": [
+    "Die Wirkung aller vier Obergrenzen ist heute ungeprueft: fuer keine der vier Abhaengigkeiten liegt eine Version oberhalb des Caps auf dem Index. Beim naechsten Major-Release stellt sich die Frage neu, und der Gegenversuch ist dann zu wiederholen",
+    "Die `structlog`-Zeile traegt keinen Kommentar, der `<27` an die gemessene 26.1.0 bindet — die Zahl ist belegbar, aber die Begruendung steht nirgends im Manifest; nur CLAUDE.md begruendet den ruff-Pin",
+    "Dependabot laeuft monatlich; zwischen zwei Laeufen kann ein Major erscheinen und der Deckel greift stillschweigend, ohne dass ein PR die Entscheidung erzwingt",
+    "Kein Lockfile: reproduzierbar ist die Aufloesung damit nur ueber die Ranges, und die CI installiert bei jedem Lauf gegen den dann aktuellen Index"
+  ]
+}

@@ -1,0 +1,57 @@
+## Finding: ARCH-007 — Capability-Aggregation: Composability intern, Atomarität extern
+
+**Severity:** medium
+**Status:** open
+**Server:** eth-library-mcp
+**Check-Reference:** ARCH-007
+**Katalog-Referenz:** Sec 2.3
+**Spec-Baseline:** (keine)
+**Audit-Lauf:** 2026-09-19T171257-Z-eth-library-mcp
+
+### Observed Behavior
+
+Der Check ist **teilweise** erfuellt: Die tragenden Zusicherungen sind belegt, einzelne Kriterien nicht. Beides steht unten.
+
+- Gedanklich abgeschlossene Resultate: formatting.py:34-60 (`_format_resource_summary`) rendert pro Treffer Titel, Autor:in, Jahr, Typ, MMS-ID und DOI; die Such-Tools haengen Trefferzahl, Bereichsangabe, Pagination-Hinweis und Quellenangabe an (server.py:302-322). Gemessen an einem respx-Mock mit einem Treffer enthaelt die Antwort von eth_search_resources bereits Titel und 'Treffer'-Zeile — der Aufrufer braucht keinen Folge-Call fuer eine erste vollstaendige Antwort.
+- formatting.py:62-113 (`_format_resource_detail`) liefert bei eth_get_resource ein abgeschlossenes Dokument inkl. Mitwirkenden, ISSN/ISBN/DOI, Schlagworten, Beschreibung und bis zu 5 Delivery-Links — kein blosser Pointer.
+- Anchor-Demo-Query mit 1 Tool-Call belegt (EXAMPLES.md:9-10, :39-40, :54-55); Synergie-Kriterium zu ARCH-006 erfuellt.
+- KEINE interne Parallel-Aggregation: `grep -rn 'asyncio.gather|Promise.all|TaskGroup'` ueber src/ → 0 Treffer, und `import asyncio` kommt in src/ gar nicht vor. Negativkontrolle gegen eine Probe-Datei mit `a, b = await asyncio.gather(x(), y())` → 1 Treffer, das Muster greift. Jedes Tool macht genau einen `_http_get` (server.py:291, 379, 448, 544, 646) — selbst am respx-Routenzaehler bestaetigt (call_count == 1 je Aufruf).
+- Die beiden Prompts schieben die Orchestrierung ausdruecklich an das LLM: server.py:779-791 (`research-workflow`) schreibt fuenf nummerierte Schritte ueber vier verschiedene Tools vor ('Starte mit eth_library_info ... Suche mit eth_search_resources ... Suche auch in den relevanten Archiven ... Rufe die vielversprechendsten Ressourcen via eth_get_resource ab'); server.py:793-803 (`education-research`) vier Schritte ueber drei Tools. Das ist genau das Fail-Pattern 'LLM muss jetzt selbst orchestrieren'.
+
+### Expected Behavior
+
+Die Pass-Kriterien stehen in `checks/ARCH-007.md` des Katalogs
+(Skill mcp-audit 2.3.0). Sie werden hier bewusst nicht paraphrasiert: Eine
+zweite, von Hand gepflegte Fassung derselben Kriterien driftet vom Katalog ab,
+und dann prueft der Report eine Anforderung, die niemand mehr gestellt hat.
+
+### Evidence
+
+- Gedanklich abgeschlossene Resultate: formatting.py:34-60 (`_format_resource_summary`) rendert pro Treffer Titel, Autor:in, Jahr, Typ, MMS-ID und DOI; die Such-Tools haengen Trefferzahl, Bereichsangabe, Pagination-Hinweis und Quellenangabe an (server.py:302-322). Gemessen an einem respx-Mock mit einem Treffer enthaelt die Antwort von eth_search_resources bereits Titel und 'Treffer'-Zeile — der Aufrufer braucht keinen Folge-Call fuer eine erste vollstaendige Antwort.
+- formatting.py:62-113 (`_format_resource_detail`) liefert bei eth_get_resource ein abgeschlossenes Dokument inkl. Mitwirkenden, ISSN/ISBN/DOI, Schlagworten, Beschreibung und bis zu 5 Delivery-Links — kein blosser Pointer.
+- Anchor-Demo-Query mit 1 Tool-Call belegt (EXAMPLES.md:9-10, :39-40, :54-55); Synergie-Kriterium zu ARCH-006 erfuellt.
+- KEINE interne Parallel-Aggregation: `grep -rn 'asyncio.gather|Promise.all|TaskGroup'` ueber src/ → 0 Treffer, und `import asyncio` kommt in src/ gar nicht vor. Negativkontrolle gegen eine Probe-Datei mit `a, b = await asyncio.gather(x(), y())` → 1 Treffer, das Muster greift. Jedes Tool macht genau einen `_http_get` (server.py:291, 379, 448, 544, 646) — selbst am respx-Routenzaehler bestaetigt (call_count == 1 je Aufruf).
+- Die beiden Prompts schieben die Orchestrierung ausdruecklich an das LLM: server.py:779-791 (`research-workflow`) schreibt fuenf nummerierte Schritte ueber vier verschiedene Tools vor ('Starte mit eth_library_info ... Suche mit eth_search_resources ... Suche auch in den relevanten Archiven ... Rufe die vielversprechendsten Ressourcen via eth_get_resource ab'); server.py:793-803 (`education-research`) vier Schritte ueber drei Tools. Das ist genau das Fail-Pattern 'LLM muss jetzt selbst orchestrieren'.
+
+### Gaps
+
+- Pass-Kriterium 2 unerfuellt, wo Aggregation Sinn ergaebe: der Workflow 'Thema recherchieren' (der eigene `research-workflow`-Prompt) verlangt 4-5 Tool-Calls, die der Server in einem Tool parallel (asyncio.gather ueber Discovery-Suche + Archivsuche + Detailabrufe) buendeln koennte. Es gibt kein einziges aggregierendes Tool.
+- eth_get_resource setzt eine MMS-ID voraus, die nur aus einem vorherigen Such-Call stammt — die im Check beschriebene Zwei-Schritt-Kette (getXId → getXDetails) besteht hier faktisch, auch wenn der Suchtreffer schon nutzbare Metadaten mitliefert.
+- Pass-Kriterium 3 (Beschreibung erwaehnt den aggregierten Charakter) ist gegenstandslos, weil nicht aggregiert wird — das zaehlt nicht als Erfuellung.
+
+### Risk Description
+
+Ergibt sich aus den Luecken oben und der Severity `medium`. Wo eine Luecke
+nur die Dokumentation betrifft, ist das Risiko ein anderes als bei einer
+Verhaltensluecke — der Report unterscheidet das in der Findings-Tabelle, dieses
+Dokument fuehrt beide Arten unvermischt auf, statt sie zu einer Erzaehlung zu
+verbinden.
+
+### Remediation
+
+Die Behebung steht im Abschnitt «Remediation» von `checks/ARCH-007.md`. Was
+an diesem Server konkret zu tun ist, folgt aus den Luecken oben.
+
+### Effort Estimate
+
+S (< 1d) — Schaetzung nach Severity, nicht gemessen.

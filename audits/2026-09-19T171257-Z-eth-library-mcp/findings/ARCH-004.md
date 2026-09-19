@@ -1,0 +1,59 @@
+## Finding: ARCH-004 — Inversion of Control: Transport-agnostische Server-Logik
+
+**Severity:** high
+**Status:** open
+**Server:** eth-library-mcp
+**Check-Reference:** ARCH-004
+**Katalog-Referenz:** Sec 2.1
+**Spec-Baseline:** (keine)
+**Audit-Lauf:** 2026-09-19T171257-Z-eth-library-mcp
+
+### Observed Behavior
+
+Der Check ist **teilweise** erfuellt: Die tragenden Zusicherungen sind belegt, einzelne Kriterien nicht. Beides steht unten.
+
+- Keine Transport-Internals in Tool-Handlern: Suche nach `request.headers|websocket.|sys.stdin|sys.stdout|.remote_addr` ueber src/*.py → 0 Treffer. Negativkontrolle im selben Lauf gegen eine Probe-Datei mit `ua = request.headers["User-Agent"]` und `sys.stdout.write(ua)` → 2 Treffer, das Muster greift.
+- src/eth_library_mcp/server.py:258, :370, :434, :525, :624 — alle fuenf netzsprechenden Tools nehmen ausschliesslich `ctx: Context | None = None` entgegen und nutzen davon nur `ctx.report_progress()` / `ctx.warning()`, also die protokollseitige, transportunabhaengige Schnittstelle.
+- Beide Transporte werden aus demselben Code bedient: src/eth_library_mcp/server.py:961-973 — `--http` fuehrt ueber `_run_http` → `build_http_app()` → `mcp.streamable_http_app(...)`, sonst `mcp.run()` (stdio). Der Lifespan ist gemeinsam: client.py:88-101 `lifespan()` wird in server.py:186 an den einen `MCPServer` uebergeben und gilt fuer beide Wege.
+- Modulgrenzen belegt: client.py (httpx, Egress-Allow-List, Lifespan), formatting.py (reines Markdown-Rendering, keine HTTP-Aufrufe), logging_config.py, server.py (Tool-Registry). Die Tool-Schicht spricht upstream ausschliesslich ueber `_http_get` (server.py:291, :379, :448, :544, :646).
+- Selbst gemessen (respx-Mock, direkte Funktionsaufrufe ohne Transport, und ein echter POST durch den ASGI-Stack via build_http_app()): dasselbe tools/list-Resultat und dieselben Tool-Rueckgaben; die Handler lesen keinen Transport-Zustand.
+- Konfiguration NICHT ueber ein Settings-Objekt: Suche nach `BaseSettings|pydantic_settings` in src/ → 0 Treffer (einziger `Settings(`-Treffer ist `TransportSecuritySettings` des SDK, server.py:896). Negativkontrolle gegen eine Probe-Datei mit `from pydantic import SecretStr` / `class S(BaseSettings)` → Treffer. Stattdessen 5 verstreute `os.environ.get(...)`-Aufrufe (client.py:45; server.py:59, :701, :846, :857) plus das Modul-Global `_http_client` (client.py:38).
+
+### Expected Behavior
+
+Die Pass-Kriterien stehen in `checks/ARCH-004.md` des Katalogs
+(Skill mcp-audit 2.3.0). Sie werden hier bewusst nicht paraphrasiert: Eine
+zweite, von Hand gepflegte Fassung derselben Kriterien driftet vom Katalog ab,
+und dann prueft der Report eine Anforderung, die niemand mehr gestellt hat.
+
+### Evidence
+
+- Keine Transport-Internals in Tool-Handlern: Suche nach `request.headers|websocket.|sys.stdin|sys.stdout|.remote_addr` ueber src/*.py → 0 Treffer. Negativkontrolle im selben Lauf gegen eine Probe-Datei mit `ua = request.headers["User-Agent"]` und `sys.stdout.write(ua)` → 2 Treffer, das Muster greift.
+- src/eth_library_mcp/server.py:258, :370, :434, :525, :624 — alle fuenf netzsprechenden Tools nehmen ausschliesslich `ctx: Context | None = None` entgegen und nutzen davon nur `ctx.report_progress()` / `ctx.warning()`, also die protokollseitige, transportunabhaengige Schnittstelle.
+- Beide Transporte werden aus demselben Code bedient: src/eth_library_mcp/server.py:961-973 — `--http` fuehrt ueber `_run_http` → `build_http_app()` → `mcp.streamable_http_app(...)`, sonst `mcp.run()` (stdio). Der Lifespan ist gemeinsam: client.py:88-101 `lifespan()` wird in server.py:186 an den einen `MCPServer` uebergeben und gilt fuer beide Wege.
+- Modulgrenzen belegt: client.py (httpx, Egress-Allow-List, Lifespan), formatting.py (reines Markdown-Rendering, keine HTTP-Aufrufe), logging_config.py, server.py (Tool-Registry). Die Tool-Schicht spricht upstream ausschliesslich ueber `_http_get` (server.py:291, :379, :448, :544, :646).
+- Selbst gemessen (respx-Mock, direkte Funktionsaufrufe ohne Transport, und ein echter POST durch den ASGI-Stack via build_http_app()): dasselbe tools/list-Resultat und dieselben Tool-Rueckgaben; die Handler lesen keinen Transport-Zustand.
+- Konfiguration NICHT ueber ein Settings-Objekt: Suche nach `BaseSettings|pydantic_settings` in src/ → 0 Treffer (einziger `Settings(`-Treffer ist `TransportSecuritySettings` des SDK, server.py:896). Negativkontrolle gegen eine Probe-Datei mit `from pydantic import SecretStr` / `class S(BaseSettings)` → Treffer. Stattdessen 5 verstreute `os.environ.get(...)`-Aufrufe (client.py:45; server.py:59, :701, :846, :857) plus das Modul-Global `_http_client` (client.py:38).
+
+### Gaps
+
+- Pass-Kriterium 3 unerfuellt: keine Pydantic-Settings-/Settings-Klasse. Konfiguration liegt in verstreuten `os.environ.get`-Aufrufen und Modul-Funktionen (`configured_origins()`, `allowed_hosts()`), dazu ein mutierendes Modul-Global `_http_client` — genau der im Check genannte Flaky-Test-Anti-Pattern.
+- Pass-Kriterium 2 nur teilweise: der Transport ist per CLI-Flag `--http`/`--host`/`--port` waehlbar, nicht per ENV-Var. In einer Container-/PaaS-Umgebung, in der nur Env gesetzt werden kann, ist der HTTP-Modus nicht erreichbar, ohne das Kommando zu aendern.
+- Kein Test, der dasselbe Tool-Resultat ueber beide Transporte vergleicht (Modus 3 des Checks). Ich habe die Aequivalenz nur fuer tools/list gemessen, nicht fuer einen Tool-Call ueber stdio.
+
+### Risk Description
+
+Ergibt sich aus den Luecken oben und der Severity `high`. Wo eine Luecke
+nur die Dokumentation betrifft, ist das Risiko ein anderes als bei einer
+Verhaltensluecke — der Report unterscheidet das in der Findings-Tabelle, dieses
+Dokument fuehrt beide Arten unvermischt auf, statt sie zu einer Erzaehlung zu
+verbinden.
+
+### Remediation
+
+Die Behebung steht im Abschnitt «Remediation» von `checks/ARCH-004.md`. Was
+an diesem Server konkret zu tun ist, folgt aus den Luecken oben.
+
+### Effort Estimate
+
+M (1-3d) — Schaetzung nach Severity, nicht gemessen.
