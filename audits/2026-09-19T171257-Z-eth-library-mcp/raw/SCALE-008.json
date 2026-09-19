@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "category": "SCALE",
+  "severity": "high",
+  "evidence": [
+    "EVIDENZ-PAAR (a), gemessen durch build_http_app(): POST /mcp mit `MCP-Protocol-Version: 2026-07-28`, `Mcp-Method: tools/list` und passendem Envelope -> HTTP 200 mit vollstaendigem `result` (6 Werkzeuge). Zweiter Positivfall: `Mcp-Method: tools/call` + `Mcp-Name: eth_library_info` bei Body `params.name = eth_library_info` -> HTTP 200, Werkzeug ausgefuehrt. Der Server lehnt also nicht einfach alles ab",
+    "EVIDENZ-PAAR (b), gemessen: Header `Mcp-Name: eth_library_info` gegen Body `params.name = eth_search_resources` -> HTTP 400, `{\"error\": {\"code\": -32020, \"message\": \"mcp-name header does not match the request body's 'name' parameter\"}}` — und das Werkzeug lief NICHT (kein `result`, kein `content`). Zweiter Negativfall: `Mcp-Method: prompts/list` gegen Body `method: tools/list` -> ebenfalls -32020",
+    "(c) Fehlende Header werden abgelehnt und NICHT aus dem Body ergaenzt, gemessen: POST ohne `Mcp-Method` -> -32020; POST auf tools/call ohne `Mcp-Name` -> -32020. Die Pruefung ist damit nicht tautologisch",
+    "Der Fehlercode ist -32020, nicht das alte -32001. Gemessen: `from mcp_types import HEADER_MISMATCH` -> -32020; die Durchsetzung steht im SDK unter mcp/shared/inbound.py:458-470 (Rung 2 der modernen Validierungsleiter, laeuft VOR der Versionspruefung und vor jedem Dispatch), HTTP-Status-Mapping 400 in inbound.py:313",
+    "src/eth_library_mcp/server.py:817 — `CORS_ROUTING_HEADERS = [\"Mcp-Method\", \"Mcp-Name\", \"Mcp-Protocol-Version\"]`, in server.py:947 an `allow_headers` der CORSMiddleware uebergeben. GEMESSEN an einem OPTIONS-Preflight: `access-control-allow-headers: Accept, Accept-Language, Content-Language, Content-Type, Mcp-Method, Mcp-Name, Mcp-Protocol-Version, Mcp-Session-Id`. Ein Browser darf die Pflichtheader also senden; ohne diese Zeile staerbe jede Cross-Origin-Anfrage am Preflight",
+    "Negative Kontrolle zum grep: `grep -rniE 'mcp-method|mcp-name|HeaderMismatch|-32020' src/` liefert genau einen Treffer (server.py:817). Dasselbe Muster gegen das installierte SDK liefert 20+ Treffer (mcp/shared/inbound.py, mcp/client/session.py) — das Muster greift, die Ein-Treffer-Lage in src/ ist also gemessen und nicht ein Muster-Fehlschlag. Der Server delegiert die Pruefung an das SDK, statt sie zu duplizieren",
+    "Modus 3: Der Server ruft selbst keine MCP-Server auf — `grep -rn 'ClientSession|streamablehttp_client|stdio_client' src/` liefert 0 Treffer; die einzige ausgehende Verbindung ist der httpx-Aufruf an api.library.ethz.ch (client.py:76/83). Ausgehende Mcp-Header sind damit gegenstandslos"
+  ],
+  "gaps": [
+    "Die Durchsetzung liegt vollstaendig im SDK; im Repo gibt es keinen eigenen Test, der das Evidenz-Paar festhaelt. tests/test_server_identity.py:98-100 setzt die Header nur passend (Positivfall) und nennt HEADER_MISMATCH im Docstring (:83) — die Ablehnung bei Widerspruch prueft kein Test. Steigt der Server auf eine SDK-Version, die die Rung lockert, faellt hier nichts",
+    "Kein Gateway und keine Allow-List vor dem Server (Deployment ist local-stdio) — die Kombination Gateway-entscheidet-am-Header / Server-am-Body ist damit heute nicht pruefbar, aber auch nicht gegeben",
+    "Kein Reverse Proxy im Repo konfiguriert; dass ein Ingress die Mcp-*-Header nicht als unbekannt herausfiltert, ist fuer diese Auslieferung gegenstandslos, bliebe aber bei einem HTTP-Deployment zu pruefen"
+  ]
+}

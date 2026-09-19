@@ -1,0 +1,13 @@
+{"status": "pass", "category": "OBS", "severity": "critical", "evidence": [
+"Gemessen: `grep -rnE 'print\\(' src/ --include='*.py'` -> 0 Treffer in allen fuenf Modulen. Negative Kontrolle: dasselbe Muster gegen eine Probedatei mit `print(\"x\")` liefert 1 Treffer, es greift also",
+"src/eth_library_mcp/logging_config.py:25-29 — `logging.basicConfig(format=\"%(message)s\", stream=sys.stderr, level=...)`: der Stdlib-Strom ist ausdruecklich auf stderr gesetzt, nicht auf den Default verlassen",
+"src/eth_library_mcp/logging_config.py:44 — `logger_factory=structlog.PrintLoggerFactory(file=sys.stderr)`: auch structlog schreibt ausdruecklich nach stderr",
+"Laufzeitmessung 2026-09-19: der Server als echter stdio-Unterprozess gestartet (`PYTHONPATH=src python -m eth_library_mcp.server`), gefuettert mit initialize (2025-11-25), notifications/initialized und tools/list. stdout enthielt genau 2 Zeilen, beide gueltiges JSON-RPC (`{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{...}}` und die Werkzeugliste), 0 nicht-JSON-Zeilen. Negative Kontrolle: derselbe Validator stuft die Zeile `Server starting on 8000` korrekt als nicht-JSON ein",
+"Dieselbe Messung, stderr: nur die beiden strukturierten Lifecycle-Eintraege server_starting / server_stopping. Kein Log-Eintrag hat den Protokollstrom betreten",
+"src/eth_library_mcp/server.py:960-973 — dieselbe Logging-Konfiguration gilt fuer beide Transporte: `configure_logging(...)` laeuft beim Import (server.py:59), der Zweig `--http` ruft nur `uvicorn.run(..., log_level=\"warning\")` auf; es gibt keinen transportabhaengigen Logging-Schalter",
+"src/eth_library_mcp/logging_config.py:1-5 — die Begruendung steht im Modul (\"stdio-Transport (default) reserves stdout for the JSON-RPC protocol, so all logs go to stderr\")"
+], "gaps": [
+"Kein CI-Gate gegen eine Regression: `grep -rn 'print(' .github/workflows/` findet keinen Guard-Schritt, und ruff's gewaehlter Regelsatz (pyproject.toml:71, select E/F/W/I/UP) enthaelt weder T20 (flake8-print) noch eine vergleichbare Regel. Ein spaeter eingefuegtes `print()` im Handler faellt in keinem Gate auf — dieselbe Lage, die OPS-005 fuer andere Gates beschreibt",
+"Der Nachweis ueber den MCP Inspector (Modus 3 des Checks) wurde nicht gefuehrt: kein Netzzugriff in diesem Lauf, npx nicht verwendet. Der stdio-Unterprozesstest oben deckt denselben Sachverhalt ab, ist aber nicht dasselbe Werkzeug",
+"Abhaengigkeiten mit eigenem print() sind nicht ausgeschlossen: gemessen wurde der Pfad initialize/tools/list; ein Aufruf, der httpx oder structlog in einen unerwarteten Zweig fuehrt, ist von dieser Messung nicht abgedeckt"
+]}

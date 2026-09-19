@@ -1,0 +1,18 @@
+{
+  "status": "pass",
+  "category": "DRIFT",
+  "severity": "medium",
+  "evidence": [
+    ".github/workflows/live-tests.yml:12-19 — `schedule: - cron: \"17 6 * * *\"` (taeglich, ungerade Minute) plus `workflow_dispatch:`. Die Live-Suite laeuft damit haeufiger als die vom Check geforderte Woche",
+    ".github/workflows/live-tests.yml:78-113 — ein Fehlschlag erzeugt ein sichtbares Signal: `gh label create live-test-failure --force`, dann `gh issue list --label live-test-failure --state open`; existiert ein offenes Issue, wird kommentiert (`gh issue comment`), sonst eines geoeffnet (`gh issue create --title \"Live-Test rot ($(date -u +%F)): api.library.ethz.ch\"`). Kein blosses Rot im Actions-Tab",
+    "GEMESSEN an der Quelle (GitHub Actions API, malkreide/eth-library-mcp, live-tests.yml): 40 Laeufe, die letzten zehn alle `\"event\": \"schedule\"`, `\"conclusion\": \"success\"`, taeglich vom 2026-09-10 bis 2026-09-19. Der juengste Lauf ist run_number 40, created_at 2026-09-19T11:03:36Z. Der cron ist heute aktiv und gruen — nicht nur konfiguriert",
+    ".github/workflows/ci.yml:30 — der PR-Lauf bleibt bei `PYTHONPATH=src pytest tests/ -m \"not live\"`; dieser Check verlangt einen zusaetzlichen Lauf und hat ihn bekommen, ohne den PR-Lauf umzubauen",
+    "CONTRIBUTING.md:136-140 und CONTRIBUTING.de.md:136-140 nennen Kadenz UND Verantwortlichkeit: «Kadenz: taeglich um 06:17 UTC, dazu jederzeit von Hand ueber Actions -> Live-Tests -> Run workflow» sowie wer ein rotes Ergebnis sieht (Issue am Label erkannt, ein gruener Lauf schliesst es NICHT von selbst). CONTRIBUTING.de.md:142-148 setzt zusaetzlich die Erwartung, dass ein rotes Ergebnis nicht zwingend der eigene Fehler ist",
+    "scripts/classify_live_run.py:9-17, 24-39 — der Workflow faellt nicht auf `if: failure()` zurueck, sondern trennt clear/finding/unknown am JUnit-XML. Damit sind auch die beiden Faelle gefangen, die ein Exit-Code-Check durchlaesst: null eingesammelt und alle uebersprungen. tests/test_classify_live_run.py haelt das mit 19 Tests fest (gemessen: alle gruen)"
+  ],
+  "gaps": [
+    "Gegen die stille 60-Tage-Abschaltung des cron-Triggers durch GitHub tut das Repo nichts: kein Keepalive-Workflow, kein zweiter Ausloeser, und weder README noch CONTRIBUTING sagen, dass vor dem Schluss «seit Wochen nichts kaputt» erst die Actions-Seite auf den letzten Lauf zu pruefen ist. Heute folgenlos (taegliche Repo-Aktivitaet, 40 Laeufe gemessen), aber unadressiert",
+    "Doku/Wirklichkeit weichen bei der Uhrzeit ab: CONTRIBUTING nennt 06:17 UTC, die gemessenen Startzeiten der letzten zehn geplanten Laeufe liegen zwischen 10:50 und 12:53 UTC (GitHub-Warteschlange). Wer nach einem 06:17-Lauf sucht, findet keinen",
+    "Ein gruener Lauf schliesst das Issue nicht; das ist dokumentiert, aber unautomatisiert — ein behobener Ausfall bleibt als offenes Issue stehen, bis jemand es von Hand zumacht"
+  ]
+}

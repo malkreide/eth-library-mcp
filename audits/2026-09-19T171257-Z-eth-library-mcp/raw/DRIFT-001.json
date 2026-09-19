@@ -1,0 +1,19 @@
+{
+  "status": "partial",
+  "category": "DRIFT",
+  "severity": "medium",
+  "evidence": [
+    "src/eth_library_mcp/client.py:27-28 — DISCOVERY_BASE_URL und PERSONS_BASE_URL stehen als Modul-Konstanten; Gegenprobe: `grep -rnE 'https?://' src/` findet ausserhalb dieser beiden Zeilen KEIN weiteres api.library.ethz.ch-Literal in der Abrufkette (Muster greift: es lieferte 5 Nicht-pyc-Treffer, also ist die Null kein Muster-Fehlschlag)",
+    "src/eth_library_mcp/client.py:70 — `url = f\"{base_url}{path}\"` ist die EINZIGE Stelle, an der eine vollstaendige Upstream-URL zusammengesetzt wird; alle fuenf Aufrufer gehen ueber `_http_get` (server.py:291, 379, 448, 544, 646), gemessen per `grep -rn '_http_get(' src/`",
+    "Gemessen: keine Fehlermeldung nennt eine URL. Bei erzwungenem 503 lauten die Antworten woertlich \"Fehler bei Typ-Suche 'Karten / Maps': HTTP-Fehler 503.\" — kein URL-Literal, das von der abgerufenen abweichen koennte (formatting.py:112-162)",
+    "tests/test_tools.py:61,74,84,96,112,123,137,155,172 — respx registriert gegen die IMPORTIERTE Konstante `f\"{DISCOVERY_BASE_URL}/resources\"`, nicht gegen ein wiederholtes URL-Literal; ebenso tests/test_server.py:278 und :289",
+    "BEFUND src/eth_library_mcp/server.py:715 — `**Basis-URL:** https://api.library.ethz.ch` steht als zweites, handgeschriebenes Literal in der Antwort von `eth_library_info`. Gemessen an einem echten tools/call durch build_http_app(): der Text geht so an das Modell. Er behauptet, wovon der Server abruft, stammt aber nicht aus DISCOVERY_BASE_URL — genau die nicht widerlegbare Kopie, vor der dieser Check warnt",
+    "BEFUND src/eth_library_mcp/server.py:291,448,544,646 — das Pfadsegment `\"/resources\"` ist viermal als Literal wiederholt, dazu `f\"/resources/{params.mmsid}\"` (379). Es gibt keine benannte Konstruktionsfunktion (`_discovery_resources_path()` o.ae.) und damit keine Stelle, an der die Regeln stuenden"
+  ],
+  "gaps": [
+    "Keine Konstruktionsfunktion je Ressourcentyp: das Pfadsegment `/resources` wird an fuenf Stellen zusammengesetzt, der Docstring von `_http_get` (client.py:60-63) nennt nur API-Key und Fehlerbehandlung, keine Pfadregeln",
+    "server.py:715 schreibt den Upstream-Host ein zweites Mal aus; aendert sich DISCOVERY_BASE_URL, behauptet `eth_library_info` weiterhin die alte Basis",
+    "Es gibt gar kein `data_source_url`-Provenance-Feld. Die `Quelle:`-Zeile (formatting.py:20) nennt das Entwicklerportal developer.library.ethz.ch, nicht die tatsaechlich abgerufene URL — Kriterium 2 des Checks ist damit weder erfuellt noch widerlegt, es ist unpruefbar",
+    "Kein Test der Form `provenance.data_source_url == str(route.calls[0].request.url)`; die Kopplung Abruf/Provenance ist nirgends festgehalten"
+  ]
+}

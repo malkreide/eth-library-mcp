@@ -1,0 +1,16 @@
+{
+ "status": "pass",
+ "category": "ARCH",
+ "severity": "high",
+ "evidence": [
+  "Tool-Anzahl gemessen mit `mcp.list_tools()`: 6 Tools — unter der im Check genannten Schwelle von 8 ('in der Regel ok') und weit unter der Ideal-Obergrenze 12. Deckungsgleich mit der Registrierung im Quelltext: `grep -n '@mcp.tool' src/eth_library_mcp/server.py` liefert genau 6 Treffer (Zeilen 246, 358, 422, 513, 612, 689).",
+  "Kein 1:1-API-Mapping: die sechs Tools stehen 2 Upstream-Pfaden gegenueber. `grep -n '_http_get' src/eth_library_mcp/server.py` zeigt 5 Aufrufe, vier davon auf `/resources` (Zeilen 291, 448, 544, 646), einer auf `/resources/{mmsid}` (Zeile 379); eth_library_info ruft gar nichts auf. Das Verhaeltnis ist also umgekehrt zum Anti-Pattern — mehrere Use-Case-Tools ueber einen Endpunkt, nicht ein Tool pro Endpunkt. Kein CRUD-Mapping: kein create/update/delete-Tool existiert.",
+  "Anchor-Demo-Queries mit genau 1 Tool-Call: EXAMPLES.md:9-10 ('Historische Lehrmittel ...' -> ein eth_search_education-Aufruf), EXAMPLES.md:39-40 ('Historische Karten der Heimatregion' -> ein eth_search_by_type-Aufruf), EXAMPLES.md:54-55 (MMS-ID-Detailabruf -> ein eth_get_resource-Aufruf). Selbst gegengeprueft: jeder solche Aufruf erzeugt gemessen genau einen Upstream-Request (respx-Routenzaehler == 1).",
+  "Laufzeit pro Tool-Aufruf ist durch einen einzigen Upstream-Call plus 30s-Timeout begrenzt (src/eth_library_mcp/client.py:29 REQUEST_TIMEOUT = 30.0); es gibt keine sequentielle Aggregationskette, die die 5s-Marke des Checks reissen koennte.",
+  "Die Aufteilung der vier Such-Tools ist ausdruecklich begruendet und als Audit-Entscheid dokumentiert: docs/ARCHITECTURE.md:20-58 ('Tool inventory and the consolidation question' — geschlossene Literal-Enums als Schema-Guardrails, LLM-Tool-Picking-Ergonomie, kuratierter Schulamt-Einstieg)."
+ ],
+ "gaps": [
+  "eth_search_resources subsumiert eth_search_by_type und eth_search_education funktional (es traegt dieselben `resource_type`- und `open_access_only`-Parameter). Das ist der Common-Failure-Fall 'getX / getXByY als mehrere Tools — LLM raet, welches richtig ist'. Er ist in docs/ARCHITECTURE.md bewusst akzeptiert, die Tool-Descriptions selbst sagen die Abgrenzung aber nicht (siehe ARCH-002).",
+  "Die Begruendung steht in docs/ARCHITECTURE.md, nicht im README — fuer ARCH-006 unschaedlich (das Kriterium greift erst 'bei vielen Tools'), fuer ARCH-011 dagegen relevant."
+ ]
+}

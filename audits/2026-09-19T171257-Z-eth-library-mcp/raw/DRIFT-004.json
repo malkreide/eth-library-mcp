@@ -1,0 +1,17 @@
+{
+  "status": "partial",
+  "category": "DRIFT",
+  "severity": "high",
+  "evidence": [
+    "Endpoint-Konstanten vollstaendig inventarisiert: `grep -rnE '^[A-Z_]+(_BASE|_URL|_ENDPOINT|_API)\\s*=\\s*\"https?://' src/` liefert genau zwei — src/eth_library_mcp/client.py:27 DISCOVERY_BASE_URL und :28 PERSONS_BASE_URL. Kein weiterer Host in der Abrufkette (die uebrigen https-Literale in src/ sind Doku-Links auf developer.library.ethz.ch bzw. GitHub)",
+    "Beide Konstanten sind live abgedeckt und werden IMPORTIERT, nicht kopiert: tests/test_server.py:276-278 (`from eth_library_mcp.client import DISCOVERY_BASE_URL` … `httpx.get(f\"{DISCOVERY_BASE_URL}/resources\")`) und :287-289 (PERSONS_BASE_URL). Gemessen: `pytest -m live --collect-only` sammelt genau diese zwei ein (tests/test_server.py::TestLiveGatewayRoutes)",
+    "Mocks registrieren gegen die importierte Konstante, nicht gegen ein wiederholtes Literal — tests/test_tools.py:18 importiert DISCOVERY_BASE_URL, alle neun respx-Registrierungen bauen `f\"{DISCOVERY_BASE_URL}/...\"`. Kein URL-Literal in tests/: `grep -rn 'api.library.ethz.ch' tests/*.py` liefert 0 Treffer, waehrend dasselbe Muster in src/ 3 Treffer hat — das Muster greift also",
+    "BEFUND tests/test_server.py:279 — `assert r.status_code == route_status('discovery_resources')`, also == 401 exakt. Ein transientes 5xx macht den Test rot mit der Begruendung 'fuenf Werkzeuge haengen daran'. tests/test_server.py:290 spiegelbildlich: `assert r.status_code == 404` — ein 503 der Persons-Route liest sich dort als 'die Route ist zurueck'. Die vom Check verlangte Unterscheidung 404 (weg) / 5xx (transient) findet nicht statt",
+    "scripts/classify_live_run.py ordnet clear/finding/unknown ausschliesslich am JUnit-XML ein (Tests, Skips, Failures, Errors) und kann einen Statuscode nicht sehen — die fehlende Unterscheidung wird also auch nicht nachgelagert nachgeholt"
+  ],
+  "gaps": [
+    "Die beiden Live-Tests unterscheiden 404 nicht von 5xx: beide vergleichen auf Gleichheit mit einem festen Code. Ein Ausfall der Quelle erzeugt denselben Befund wie ein abgeschalteter Endpoint — und bei test_persons_route_is_still_gone sogar einen inhaltlich falschen ('die Route ist zurueck')",
+    "Der Live-Test prueft nur den Statuscode der Route, nicht einen minimal gueltigen Aufruf; eine Umbenennung eines Pfadsegments unterhalb von /resources faenge er nicht",
+    "Kein Probe-Manifest ausserhalb der Testsuite (kein scripts/live_probe.manifest.json); die Abdeckung haengt vollstaendig am geplanten Lauf dieses Repos"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "audit_meta": {
+    "server_name": "eth-library-mcp",
+    "run_id": "2026-09-19T171257-Z-eth-library-mcp",
+    "started_at": "2026-09-19T17:12:57.405514+00:00",
+    "timezone_offset": "Z",
+    "skill_version": "2.3.0",
+    "output_dir": "audits/2026-09-19T171257-Z-eth-library-mcp",
+    "catalog_hash": "2bbded9079fd2a692bf8037a6eb4d6e4804442b8094b7290a634e1c3299d3ecf",
+    "catalog_dir": "/root/.claude/skills/synced/8dcf3530-7a7f-49a9-94d7-f623f1ff19e5_5dce0db8-293c-4b99-91d8-a7b25de8aaac/mcp-audit/checks",
+    "target_repo": ".",
+    "target_sha": "32ac730127e50af4c892e35f7fa8097e1504f8f0",
+    "target_dirty": false,
+    "target_branch": "claude/mcp-server-spec-2026-07-28-6pod4y"
+  },
+  "agent_runs": []
+}

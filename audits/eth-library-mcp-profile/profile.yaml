@@ -1,6 +1,7 @@
 name: eth-library-mcp
 repo: https://github.com/malkreide/eth-library-mcp
 transport: dual
+mcp_spec_version: "2026-07-28"
 auth_model: API-Key
 data_class: Public Open Data
 write_capable: false

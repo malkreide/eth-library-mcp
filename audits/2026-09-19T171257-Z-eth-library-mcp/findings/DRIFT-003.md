@@ -1,0 +1,60 @@
+## Finding: DRIFT-003 — Kein Test-Assert wird vom Degradationspfad erfüllt
+
+**Severity:** high
+**Status:** open
+**Server:** eth-library-mcp
+**Check-Reference:** DRIFT-003
+**Katalog-Referenz:** Custom (Portfolio-Fundstück meteoswiss-mcp#33/#35/#37, 2026-07-30)
+**Spec-Baseline:** (keine)
+**Audit-Lauf:** 2026-09-19T171257-Z-eth-library-mcp
+
+### Observed Behavior
+
+Der Check ist **nicht** erfuellt. Die folgenden Punkte sind in diesem Lauf am Baum gemessen worden.
+
+- GEGENPROBE (Modus 2), gemessen: mit einer autouse-Fixture, die `eth_library_mcp.server._http_get` auf einen HTTPStatusError(503) setzt, laufen 4 von 11 Tests in tests/test_tools.py WEITER GRUEN. Zwei davon sind Erfolgspfad-Tests: `test_search_by_type_happy_path` (tests/test_tools.py:153-164) und `test_search_education_happy_path` (tests/test_tools.py:170-179). Ein Totalausfall des Upstreams macht sie nicht rot
+- tests/test_tools.py:164 — `assert "Karte" in out`. Der Degradationspfad liefert woertlich "Fehler bei Typ-Suche 'Karten / Maps': HTTP-Fehler 503." — das Stichwort steht in der Fehlermeldung, weil server.py:574 den Typ-Label `RESOURCE_TYPES['maps'] = 'Karten / Maps'` in den Fehlerkontext schreibt
+- tests/test_tools.py:179 — `assert "Volksschule" in out`. Der Degradationspfad liefert "Fehler bei Bildungssuche 'Volksschule Zuerich': HTTP-Fehler 503." (server.py:681 setzt `params.topic` in den Kontext). Derselbe Mechanismus wie `assert "KLO" in result or "Zuerich" in result` im Belegfall des Checks
+- Kein einziger Test schliesst den Degradationspfad AUS, bevor er Inhalt prueft: `grep -rn 'assert.*not in' tests/` findet nur OBS-002-Leakage-Zusicherungen (test_tools.py:91 'sk-1234', :102 'stacktrace', :103 '<html>'), keine Zusicherung gegen einen Ausfallmarker
+- Der Degradationspfad ist nicht maschinell erkennbar: `formatting.py:112-162` liefert einen reinen Markdown-String mit dem deutschen Praefix 'Fehler bei ...'. Gemessen an einem echten tools/call durch build_http_app(): `"isError": false, "resultType": "complete"` — der Ausfall ist auch auf Protokollebene nicht als solcher markiert. Es gibt kein Statusfeld und keinen dokumentierten eindeutigen Marker
+- tests/test_tools.py:136-147 und :110-118 — `test_search_archive_happy_path` und `test_get_resource_happy_path` fallen in der Gegenprobe zwar, aber nur zufaellig: ihre zweite Zusicherung ('Archivstueck', 'Detail-Titel') kommt im Fehlertext nicht vor. Die erste Zusicherung von test_search_archive ('Hochschularchiv') steht sehr wohl in "Fehler bei Archivsuche 'Hochschularchiv ETH Zuerich'" — gemessen
+
+### Expected Behavior
+
+Die Pass-Kriterien stehen in `checks/DRIFT-003.md` des Katalogs
+(Skill mcp-audit 2.3.0). Sie werden hier bewusst nicht paraphrasiert: Eine
+zweite, von Hand gepflegte Fassung derselben Kriterien driftet vom Katalog ab,
+und dann prueft der Report eine Anforderung, die niemand mehr gestellt hat.
+
+### Evidence
+
+- GEGENPROBE (Modus 2), gemessen: mit einer autouse-Fixture, die `eth_library_mcp.server._http_get` auf einen HTTPStatusError(503) setzt, laufen 4 von 11 Tests in tests/test_tools.py WEITER GRUEN. Zwei davon sind Erfolgspfad-Tests: `test_search_by_type_happy_path` (tests/test_tools.py:153-164) und `test_search_education_happy_path` (tests/test_tools.py:170-179). Ein Totalausfall des Upstreams macht sie nicht rot
+- tests/test_tools.py:164 — `assert "Karte" in out`. Der Degradationspfad liefert woertlich "Fehler bei Typ-Suche 'Karten / Maps': HTTP-Fehler 503." — das Stichwort steht in der Fehlermeldung, weil server.py:574 den Typ-Label `RESOURCE_TYPES['maps'] = 'Karten / Maps'` in den Fehlerkontext schreibt
+- tests/test_tools.py:179 — `assert "Volksschule" in out`. Der Degradationspfad liefert "Fehler bei Bildungssuche 'Volksschule Zuerich': HTTP-Fehler 503." (server.py:681 setzt `params.topic` in den Kontext). Derselbe Mechanismus wie `assert "KLO" in result or "Zuerich" in result` im Belegfall des Checks
+- Kein einziger Test schliesst den Degradationspfad AUS, bevor er Inhalt prueft: `grep -rn 'assert.*not in' tests/` findet nur OBS-002-Leakage-Zusicherungen (test_tools.py:91 'sk-1234', :102 'stacktrace', :103 '<html>'), keine Zusicherung gegen einen Ausfallmarker
+- Der Degradationspfad ist nicht maschinell erkennbar: `formatting.py:112-162` liefert einen reinen Markdown-String mit dem deutschen Praefix 'Fehler bei ...'. Gemessen an einem echten tools/call durch build_http_app(): `"isError": false, "resultType": "complete"` — der Ausfall ist auch auf Protokollebene nicht als solcher markiert. Es gibt kein Statusfeld und keinen dokumentierten eindeutigen Marker
+- tests/test_tools.py:136-147 und :110-118 — `test_search_archive_happy_path` und `test_get_resource_happy_path` fallen in der Gegenprobe zwar, aber nur zufaellig: ihre zweite Zusicherung ('Archivstueck', 'Detail-Titel') kommt im Fehlertext nicht vor. Die erste Zusicherung von test_search_archive ('Hochschularchiv') steht sehr wohl in "Fehler bei Archivsuche 'Hochschularchiv ETH Zuerich'" — gemessen
+
+### Gaps
+
+- Zwei von fuenf Erfolgspfad-Tests der Werkzeugschicht bestehen einen Totalausfall des Upstreams (gemessen, nicht geschlossen)
+- Kein strukturiertes Statusfeld und kein dokumentierter Ausfallmarker; jede Testverschaerfung haengt am deutschen Textliteral 'Fehler bei'
+- Keine Gegenprobe im Repo: es existiert kein Test, der den Upstream bricht und zeigt, dass die Erfolgstests dann rot werden
+- Modus 3 ohne Befund und mit Gegenkontrolle: `grep -rn 'match=|assertRaisesRegex' tests/ scripts/` liefert 0 Treffer; dieselbe Suche gegen eine Probedatei mit `pytest.raises(E, match="summary.json not found")` liefert 1 — das Muster greift, es gibt hier schlicht keine Regex-Assertion
+
+### Risk Description
+
+Ergibt sich aus den Luecken oben und der Severity `high`. Wo eine Luecke
+nur die Dokumentation betrifft, ist das Risiko ein anderes als bei einer
+Verhaltensluecke — der Report unterscheidet das in der Findings-Tabelle, dieses
+Dokument fuehrt beide Arten unvermischt auf, statt sie zu einer Erzaehlung zu
+verbinden.
+
+### Remediation
+
+Die Behebung steht im Abschnitt «Remediation» von `checks/DRIFT-003.md`. Was
+an diesem Server konkret zu tun ist, folgt aus den Luecken oben.
+
+### Effort Estimate
+
+M (1-3d) — Schaetzung nach Severity, nicht gemessen.

@@ -1,0 +1,16 @@
+{"status": "partial", "category": "OPS", "severity": "high", "evidence": [
+"tests/fixtures/PROVENANCE.md:1-5 — \"Erzeugt von `scripts/record_fixtures.py`. Nicht von Hand pflegen. Aufgezeichnet am **2026-08-08** von `api.library.ethz.ch`\"; Aufnahmedatum, Quelle und erzeugendes Werkzeug stehen benannt da",
+"tests/fixtures/PROVENANCE.md:28-33 — je Datei Quelle (`https://api.library.ethz.ch/…`), Aufnahmedatum 2026-08-08, Auswahlregel, Groesse 1133 B und SHA-256 98b2d19e...; die Herkunft nennt den Endpunkt, nicht bloss «die API»",
+"tests/fixtures/api_routes.json:2 — `\"recorded_at\": \"2026-08-08\"` im Datenkopf selbst; die sechs Routeneintraege tragen je url, status und eine why-Begruendung",
+"scripts/record_fixtures.py:133-168 — wiederholbarer Aufnahmeweg gegen die echte Quelle, dokumentiert in README.md:327-328 und README.de.md:330-331 (`python scripts/record_fixtures.py`); tests/fixture_data.py:33-36 verweist im Fehlerfall ausdruecklich darauf",
+"scripts/record_fixtures.py:142-155 — drei Positivkontrollen VOR dem Schreiben: Discovery muss ohne Schluessel 401 liefern, ein erfundener Pfad muss 404 liefern, und die Personen-Route darf nicht wieder 401 antworten. Das ist die von OPS-009 verlangte Gegenprobe, im Aufzeichner statt im Test",
+"tests/test_server.py:262-292 — die Live-Tests halten die Aufnahme gegen die Quelle auf genau der Ebene, die der Code liest: `assert r.status_code == route_status(\"discovery_resources\")` und `assert r.status_code == 404` fuer die Personen-Route",
+"tests/fixture_data.py:40-48 — der Loader wirft bei unbekanntem Namen FileNotFoundError bzw. KeyError statt ein leeres Dict zurueckzugeben; ein Tippfehler erzeugt also keinen gruenen Test ohne Pruefgegenstand",
+"tests/fixtures/PROVENANCE.md:39-52 — die NICHT aufgezeichneten Discovery-Payloads sind als solche gefuehrt, mit Grund (ETH_LIBRARY_API_KEY fehlt, API antwortet 401 FailedToResolveAPIKey) und mit dem Satz «Sie sind damit ausgedacht und tragen kein Datum»"
+], "gaps": [
+"Der Hauptendpunkt hat keine aufgezeichnete Antwort: tests/test_tools.py:34-51 (`_discovery_doc`, `_discovery_response`) sind handgeschriebene Literale, die die Discovery-Antwortstruktur (pnx.display.title/creator/creationdate/type, pnx.addata, context.mmsid, delivery.link) BEHAUPTEN. Alle 11 respx-Tests in tests/test_tools.py laufen gegen diese Annahme; keiner kann sie widerlegen",
+"Damit ist das Pass-Kriterium «fuer JEDEN externen Endpunkt mindestens eine Fixture von der echten Quelle» nicht erfuellt: aufgezeichnet ist nur der Routen-Zensus (Statuscodes), nicht der Antwortkoerper von GET /discovery/v1/resources und /discovery/v1/resources/{id}",
+"Nur der Happy Path ist als Literal vorhanden; die Fehlerpfade (401, 404, 500) werden in tests/test_tools.py:82-133 ebenfalls ueber respx-Literale erzeugt und sind damit gleichfalls ausgedacht",
+"tests/test_tools.py:8-9 — der Docstring sagt «Run with `pytest -m live` for the (currently absent) live suite»; die Live-Suite existiert seit tests/test_server.py:262. Die Datei, die die ausgedachten Fixtures traegt, beschreibt den Stand vor der Aufzeichnung",
+"Der Abstand zwischen Aufnahmedatum (2026-08-08) und Auditdatum (2026-09-19) betraegt 42 Tage. Das ist kein Befund (die Aufnahme traegt ihr Datum), aber es gibt keinen Mechanismus, der ihn irgendwo sichtbar macht oder ab einer Schwelle meldet"
+]}

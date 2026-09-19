@@ -1,0 +1,12 @@
+{"status": "partial", "category": "OPS", "severity": "high", "evidence": [
+"src/eth_library_mcp/server.py:248-251,360-363,424-427,515-518,614-617,691-694 — alle sechs @mcp.tool-Deklarationen tragen annotations mit \"readOnlyHint\": True und \"destructiveHint\": False; gemessen: 6x readOnlyHint True, 6x destructiveHint False, 0x destructiveHint True",
+"Negative Kontrolle zum destructiveHint-Muster: dieselbe grep-Zeile gegen eine Probedatei mit '\"destructiveHint\": True,' liefert 1 Treffer — die Null im Repo ist also eine Messung, kein blindes Muster",
+"src/eth_library_mcp/client.py:55-85 — der einzige Ausgangspfad ist _http_get mit client.get(); es gibt keine POST/PUT/PATCH/DELETE-Aufrufe, also faktisch Phase 1 (Read-only-Wrapper)",
+"SECURITY.md:29 — \"Every tool sets readOnlyHint: True; no write, mutate, or delete paths exist (ARCH)\"; README.md:351 / README.de.md:355 nennen dasselbe als \"Read-only\" bzw. \"Nur-Lesen\"",
+"Kein Semantic Layer / keine Federation im Baum (src/ enthaelt nur server.py, client.py, formatting.py, logging_config.py, __init__.py) — der Server ist damit weder in Phase 2 noch Phase 3"
+], "gaps": [
+"Die Phase ist nirgends ausdruecklich deklariert. Gemessen: `grep -rcniE 'phase\\s*[123]|roadmap' README.md README.de.md docs/ARCHITECTURE.md CONTRIBUTING.md` -> je 0. Negative Kontrolle: dasselbe Muster gegen eine Probedatei mit 'Phase 1: Read-only Wrapper' liefert 2 Treffer, greift also",
+"docs/roadmap.md fehlt; `find . -iname '*roadmap*' -o -iname '*phase*'` (ohne .git) liefert nichts. docs/ enthaelt ARCHITECTURE.md, data-sources.md, network-egress.md, scope-minimization.md, secret-management.md und assets/ — keine Phasenplanung",
+"Keine dokumentierten Uebergangsvoraussetzungen Phase 1 -> 2 (Audit-Run, ISDS-Klassifikation, DSG-Verarbeitungsverzeichnis) im Repo auffindbar",
+"CHANGELOG.md dokumentiert keine Phasenuebergaenge (die Releases 0.1.0-0.4.0 nennen keine Phase); das ist hier folgenlos, weil nie eine Phase gewechselt wurde, macht aber die Deklaration nicht entbehrlich"
+]}

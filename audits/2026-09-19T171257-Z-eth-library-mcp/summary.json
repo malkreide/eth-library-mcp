@@ -1,0 +1,652 @@
+{
+  "audit_meta": {
+    "server_name": "eth-library-mcp",
+    "run_id": "2026-09-19T171257-Z-eth-library-mcp",
+    "skill_version": "2.3.0",
+    "catalog_hash": "2bbded9079fd2a692bf8037a6eb4d6e4804442b8094b7290a634e1c3299d3ecf",
+    "target_sha": "32ac730127e50af4c892e35f7fa8097e1504f8f0",
+    "policy": "fail-or-partial"
+  },
+  "totals": {
+    "checks_evaluated": 85,
+    "applicable": 85,
+    "by_status": {
+      "pass": 24,
+      "fail": 12,
+      "partial": 48,
+      "not_verified": 1,
+      "todo": 0,
+      "n/a": 0
+    },
+    "by_severity_among_findings": {
+      "critical": 4,
+      "high": 30,
+      "medium": 25,
+      "low": 1
+    },
+    "by_category": {
+      "ARCH": {
+        "pass": 5,
+        "fail": 2,
+        "partial": 14,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "CH": {
+        "pass": 1,
+        "fail": 0,
+        "partial": 0,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "DEP": {
+        "pass": 1,
+        "fail": 0,
+        "partial": 0,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "DRIFT": {
+        "pass": 1,
+        "fail": 2,
+        "partial": 4,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "FID": {
+        "pass": 0,
+        "fail": 5,
+        "partial": 2,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "HITL": {
+        "pass": 1,
+        "fail": 0,
+        "partial": 0,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "IDENT": {
+        "pass": 2,
+        "fail": 1,
+        "partial": 4,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "OBS": {
+        "pass": 1,
+        "fail": 0,
+        "partial": 5,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "OPS": {
+        "pass": 2,
+        "fail": 1,
+        "partial": 7,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "SCALE": {
+        "pass": 1,
+        "fail": 0,
+        "partial": 2,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "SDK": {
+        "pass": 2,
+        "fail": 0,
+        "partial": 2,
+        "not_verified": 0,
+        "todo": 0,
+        "n/a": 0
+      },
+      "SEC": {
+        "pass": 7,
+        "fail": 1,
+        "partial": 8,
+        "not_verified": 1,
+        "todo": 0,
+        "n/a": 0
+      }
+    },
+    "by_adoption": {
+      "advisory": 24,
+      "enforced": 61
+    }
+  },
+  "findings": {
+    "policy": "fail-or-partial",
+    "policy_statuses": [
+      "fail",
+      "partial"
+    ],
+    "expected_count": 60,
+    "expected_ids": [
+      "ARCH-001",
+      "ARCH-002",
+      "ARCH-003",
+      "ARCH-004",
+      "ARCH-005",
+      "ARCH-007",
+      "ARCH-009",
+      "ARCH-011",
+      "ARCH-012",
+      "ARCH-013",
+      "ARCH-016",
+      "ARCH-018",
+      "ARCH-019",
+      "ARCH-020",
+      "ARCH-021",
+      "ARCH-022",
+      "DRIFT-001",
+      "DRIFT-002",
+      "DRIFT-003",
+      "DRIFT-004",
+      "DRIFT-006",
+      "DRIFT-008",
+      "FID-001",
+      "FID-002",
+      "FID-003",
+      "FID-004",
+      "FID-005",
+      "FID-006",
+      "FID-007",
+      "IDENT-002",
+      "IDENT-003",
+      "IDENT-004",
+      "IDENT-006",
+      "IDENT-007",
+      "OBS-001",
+      "OBS-002",
+      "OBS-003",
+      "OBS-007",
+      "OBS-008",
+      "OPS-001",
+      "OPS-002",
+      "OPS-003",
+      "OPS-004",
+      "OPS-005",
+      "OPS-007",
+      "OPS-009",
+      "OPS-010",
+      "SCALE-009",
+      "SCALE-010",
+      "SDK-002",
+      "SDK-003",
+      "SEC-003",
+      "SEC-004",
+      "SEC-005",
+      "SEC-007",
+      "SEC-018",
+      "SEC-019",
+      "SEC-021",
+      "SEC-024",
+      "SEC-028"
+    ],
+    "details": [
+      {
+        "check_id": "ARCH-001",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-002",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "fail",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-003",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "fail",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-004",
+        "category": "ARCH",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-005",
+        "category": "ARCH",
+        "severity": "critical",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-007",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-009",
+        "category": "ARCH",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-011",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-012",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-013",
+        "category": "ARCH",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "ARCH-016",
+        "category": "ARCH",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "ARCH-018",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "ARCH-019",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "ARCH-020",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "ARCH-021",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "ARCH-022",
+        "category": "ARCH",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "DRIFT-001",
+        "category": "DRIFT",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "DRIFT-002",
+        "category": "DRIFT",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "DRIFT-003",
+        "category": "DRIFT",
+        "severity": "high",
+        "status": "fail",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "DRIFT-004",
+        "category": "DRIFT",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "DRIFT-006",
+        "category": "DRIFT",
+        "severity": "medium",
+        "status": "fail",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "DRIFT-008",
+        "category": "DRIFT",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "FID-001",
+        "category": "FID",
+        "severity": "critical",
+        "status": "fail",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "FID-002",
+        "category": "FID",
+        "severity": "high",
+        "status": "fail",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "FID-003",
+        "category": "FID",
+        "severity": "high",
+        "status": "fail",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "FID-004",
+        "category": "FID",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "FID-005",
+        "category": "FID",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "FID-006",
+        "category": "FID",
+        "severity": "high",
+        "status": "fail",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "FID-007",
+        "category": "FID",
+        "severity": "high",
+        "status": "fail",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "IDENT-002",
+        "category": "IDENT",
+        "severity": "medium",
+        "status": "fail",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "IDENT-003",
+        "category": "IDENT",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "IDENT-004",
+        "category": "IDENT",
+        "severity": "low",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "IDENT-006",
+        "category": "IDENT",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "IDENT-007",
+        "category": "IDENT",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "OBS-001",
+        "category": "OBS",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "OBS-002",
+        "category": "OBS",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "OBS-003",
+        "category": "OBS",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "OBS-007",
+        "category": "OBS",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "OBS-008",
+        "category": "OBS",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "OPS-001",
+        "category": "OPS",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "OPS-002",
+        "category": "OPS",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "OPS-003",
+        "category": "OPS",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "OPS-004",
+        "category": "OPS",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "OPS-005",
+        "category": "OPS",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "OPS-007",
+        "category": "OPS",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "OPS-009",
+        "category": "OPS",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "OPS-010",
+        "category": "OPS",
+        "severity": "high",
+        "status": "fail",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "SCALE-009",
+        "category": "SCALE",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "SCALE-010",
+        "category": "SCALE",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "advisory"
+      },
+      {
+        "check_id": "SDK-002",
+        "category": "SDK",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SDK-003",
+        "category": "SDK",
+        "severity": "medium",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SEC-003",
+        "category": "SEC",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SEC-004",
+        "category": "SEC",
+        "severity": "critical",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SEC-005",
+        "category": "SEC",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SEC-007",
+        "category": "SEC",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SEC-018",
+        "category": "SEC",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SEC-019",
+        "category": "SEC",
+        "severity": "critical",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SEC-021",
+        "category": "SEC",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SEC-024",
+        "category": "SEC",
+        "severity": "high",
+        "status": "partial",
+        "adoption": "enforced"
+      },
+      {
+        "check_id": "SEC-028",
+        "category": "SEC",
+        "severity": "high",
+        "status": "fail",
+        "adoption": "enforced"
+      }
+    ]
+  },
+  "production_ready": false,
+  "blocking_findings": [
+    "DRIFT-003",
+    "FID-001",
+    "FID-002",
+    "FID-003",
+    "SEC-028"
+  ],
+  "not_verified_findings": [
+    "SEC-026"
+  ],
+  "advisory_findings": [
+    "FID-006",
+    "FID-007",
+    "OPS-010"
+  ],
+  "evidence_gate": {
+    "enforced": true,
+    "checked_against": "/root/.claude/skills/synced/8dcf3530-7a7f-49a9-94d7-f623f1ff19e5_5dce0db8-293c-4b99-91d8-a7b25de8aaac/mcp-audit/checks/"
+  },
+  "catalog_epoch": {
+    "previous_run_id": "2026-05-28T184347-Z-eth-library-mcp",
+    "previous_catalog_hash": "",
+    "catalog_hash": "2bbded9079fd2a692bf8037a6eb4d6e4804442b8094b7290a634e1c3299d3ecf",
+    "previous_checks_evaluated": 38,
+    "checks_evaluated": 85,
+    "comparable": false,
+    "reason": "catalog_hash is missing for the previous run, so it cannot be shown that both audits used the same catalogue. Trend comparison refused — unknown is not the same as unchanged.",
+    "previous_summary": "audits/2026-05-28T184347-Z-eth-library-mcp/summary.json"
+  }
+}

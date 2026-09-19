@@ -1,0 +1,18 @@
+{
+  "status": "pass",
+  "category": "SDK",
+  "severity": "high",
+  "evidence": [
+    "src/eth_library_mcp/client.py:88-101 — `@asynccontextmanager async def lifespan(_server)` mit `async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, headers={'User-Agent': USER_AGENT}) as client:`, `yield {}` und Aufraeumen im `finally` (`_http_client = None`, `log.info('server_stopping')`). Cleanup also doppelt abgesichert: Context-Manager-Exit UND finally",
+    "src/eth_library_mcp/server.py:192 — der Konstruktor bekommt ihn: `mcp = MCPServer('eth_library_mcp', …, lifespan=lifespan)`. Der Import steht in server.py:47",
+    "GEMESSEN am zusammengebauten HTTP-Stack: `eth_library_mcp.client._http_client` ist vor `app.router.lifespan_context(app)` None, innerhalb ein `AsyncClient` mit `user-agent: eth-library-mcp/0.4.0 (+https://github.com/malkreide/eth-library-mcp)`, danach wieder None",
+    "GEMESSEN, dass die Werkzeuge den Pool wirklich benutzen: zwei aufeinanderfolgende `tools/call`-Anfragen an eth_search_resources durch build_http_app() griffen auf dasselbe Client-Objekt zu (identisches `id()`, 140643269324752 in beiden Aufrufen). Kein Client pro Tool-Call",
+    "GEMESSEN auch auf dem tatsaechlichen Auslieferungsweg (stdio, Profil deployment=local-stdio): mit offenem stdin-Pipe und laufendem `mcp.run_stdio_async()` ist `client._http_client` ein `AsyncClient`. Der Lifespan laeuft also nicht nur unter Streamable HTTP — belegt auch im SDK, mcp/server/lowlevel/server.py:711 (`async with self.lifespan(self) as lifespan_context:`) und mcp/server/mcpserver/server.py:228 (lifespan_wrapper)",
+    "Kein Multi-Server-Setup: `build_http_app()` liefert eine App mit genau einer Route (`/mcp`, gemessen); `grep -rn 'AsyncExitStack|Mount(' src/` liefert 0 Treffer — der AsyncExitStack-Punkt ist gegenstandslos"
+  ],
+  "gaps": [
+    "client.py:80-85 haelt einen Pro-Aufruf-Client als Rueckfallpfad (`async with httpx.AsyncClient(...)`), wenn `_http_client is None`. Er ist als Test-/Import-Pfad kommentiert (client.py:35-38) und im Betrieb gemessen NICHT erreicht — aber er ist auch durch nichts abgesichert: kein Test und keine Zusicherung stellt fest, dass im Serverbetrieb der Pool benutzt wird",
+    "Der Pool haengt an einer Modul-globalen Variablen `_http_client` (client.py:38) statt an `server.state` / dem Lifespan-Kontext. Der Check fuehrt genau das als Anti-Pattern («schlecht testbar, Race Conditions moeglich»); `lifespan` gibt `{}` zurueck, der Kontext bleibt ungenutzt",
+    "KATALOG: SDK-001 ist durchgaengig auf FastMCP formuliert (`FastMCP([^)]*lifespan=`, `ctx.fastmcp.state.http`). Unter mcp 2.x existiert weder FastMCP noch `server.state`; der Server erfuellt die Sache mit `MCPServer(..., lifespan=...)`. Der Check gehoert auf `mcp.server.mcpserver.MCPServer` nachgezogen, sonst laeuft sein Modus-1-grep (`FastMCP([^)]*lifespan=`) an jedem migrierten Server ins Leere und meldet faelschlich 'kein Lifespan'"
+  ]
+}

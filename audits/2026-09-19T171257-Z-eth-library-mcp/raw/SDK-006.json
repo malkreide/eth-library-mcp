@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "category": "SDK",
+  "severity": "high",
+  "evidence": [
+    "Kriterium 1 und 5 zusammen: `find . -name pyproject.toml -not -path './.git/*'` liefert GENAU EIN Manifest (./pyproject.toml) — kein verschachtelter zweiter Server. Dessen Bound haengt am neuen Major: pyproject.toml:29 `\"mcp[cli]>=2.0.0,<3\"`. Kein `<2`-Deckel auf dem alten Major",
+    "Kriterium 2: `grep -rn 'mcp\\.server\\.fastmcp|from fastmcp import|FastMCP(' src/ tests/ --include='*.py'` liefert 0 Treffer. Gegenkontrolle, dass das Muster greift: dasselbe Wort findet in docs/ARCHITECTURE.md:14, :67 und README.md:243 Treffer (veraltete Prosa, siehe DRIFT-006) — die Null in src/ und tests/ ist also gemessen. Verwendet wird src/eth_library_mcp/server.py:34 `from mcp.server.mcpserver import Context, MCPServer`",
+    "Kriterium 3: `grep -rnE 'mcp\\.settings\\.[a-z_]+\\s*=|\\.settings\\.(host|port)\\s*=' src/ tests/` liefert 0 Treffer. Die Bind-Parameter gehen als Kwargs: server.py:926 `mcp.streamable_http_app(transport_security=security, host=host)` und server.py:957 `uvicorn.run(build_http_app(host, port), host=host, port=port, ...)`",
+    "Kriterium 4: `grep -rnE '\\.(readOnlyHint|destructiveHint|idempotentHint|openWorldHint)\\b' src/ tests/ --include='*.py'` liefert 0 Lesezugriffe. Gegenkontrolle: dasselbe Muster gegen eine Probedatei mit `tool.annotations.readOnlyHint` liefert 1 Treffer. Die camelCase-Vorkommen in server.py (:250, :362, :426 u. a.) stehen in Dict-Literalen, also im SCHREIBEN — laut Check gueltig. Gemessen am `tools/list`-Draht: die Annotations kommen als `{\"destructiveHint\": false, \"idempotentHint\": true, \"openWorldHint\": true, \"readOnlyHint\": true, ...}` heraus, das Drahtformat ist unveraendert",
+    "Die Migration ist in der Testsuite sichtbar: tests/test_server_identity.py:33 und tests/test_cache_hints.py:19 importieren `from mcp.server.mcpserver import MCPServer`; tests/test_cache_hints.py:72 und tests/test_server_identity.py:211 bauen damit Kontrollserver",
+    "RUNTIME-TEST auf NETZ-Transport (nicht stdio, wie der Check verlangt): `build_http_app()` baut, bindet und beantwortet echte POSTs — `tools/list` -> HTTP 200 mit 6 Werkzeugen, `tools/call` auf eth_library_info -> HTTP 200 mit Inhalt, `initialize` -> HTTP 200 mit Session-ID. Kein `ValueError: \"Settings\" object has no field \"host\"`",
+    "Kriterium 8: CI loest gegen den neuen Bound auf (.github/workflows/ci.yml:26 `pip install -e \".[dev]\"`, kein zweiter Pin, kein Lockfile im Repo), und die Suite laeuft gegen die tatsaechlich installierte Version — gemessen `version('mcp')` -> 2.2.0, `pytest tests/ -m \"not live\"` -> 128 passed",
+    "Kriterium 9: kein TypeScript im Repo (`find . -name '*.ts' -not -path './.git/*'` leer) — es wurde nichts faelschlich auf snake_case «mitkorrigiert»"
+  ],
+  "gaps": [
+    "Die Prosa ist der Migration nicht gefolgt: docs/ARCHITECTURE.md:14 und :67, README.md:243, README.de.md:244 fuehren weiterhin FastMCP. Das liegt ausserhalb des Greps dieses Checks (src/ und tests/) und ist als DRIFT-006-Befund gefuehrt, gehoert aber in denselben Nachzug",
+    "Kein Lockfile im Repo — damit gibt es auch keinen halben Zustand «Lockfile haelt 1.x, Manifest sagt 2.x», aber auch keine reproduzierbare Aufloesung fuer die CI"
+  ]
+}

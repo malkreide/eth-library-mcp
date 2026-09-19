@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "category": "HITL",
+  "severity": "high",
+  "evidence": [
+    "Modus 1 — keine serverinitiierten Requests: `grep -rnE 'sampling/createMessage|create_message|elicitation/create|elicit|roots/list|list_roots' src/ --include='*.py'` liefert 0 Treffer. Negative Kontrolle: dasselbe Muster gegen das installierte SDK findet mcp/server/elicitation.py, mcp/shared/peer.py, mcp/server/connection.py, mcp/server/mcpserver/resolve.py und mcp/shared/exceptions.py — das Muster greift, die Null in src/ ist gemessen",
+    "GEMESSEN am `initialize`-Resultat durch build_http_app(): der Server deklariert `capabilities = {\"experimental\": {}, \"prompts\": {\"listChanged\": false}, \"resources\": {\"listChanged\": false, \"subscribe\": false}, \"tools\": {\"listChanged\": false}}` — keine Sampling-, Elicitation- oder Roots-Faehigkeit im Spiel",
+    "Modus 3 — Nebenwirkungen vor einem Rueckfragepunkt gibt es nicht, weil es keine Nebenwirkungen gibt. Je Werkzeug belegt am `tools/list`-Draht (gemessen): alle sechs tragen `\"readOnlyHint\": true` und `\"destructiveHint\": false` — eth_search_resources, eth_get_resource, eth_search_archive, eth_search_by_type, eth_search_education, eth_library_info. Der einzige ausgehende Verkehr ist ein httpx-GET (client.py:76/83); `grep -rnE '\\.(post|put|patch|delete)\\(' src/` liefert keinen schreibenden Upstream-Aufruf. Ein Retry kann damit nichts verdoppeln",
+    "`input_required` wird nicht fuer gewoehnliche Fehler missbraucht — GEMESSEN an einem tools/call mit erzwungenem Upstream-503: die Antwort ist `{\"content\": [{\"text\": \"Fehler bei Suche nach 'any,contains,x': HTTP-Fehler 503.\", \"type\": \"text\"}], \"isError\": false, \"resultType\": \"complete\"}`. Der Server antwortet mit `complete`, nicht mit einer Eingabeanforderung; `grep -rnE 'input_required|inputRequests|inputResponses|requestState' src/` liefert 0 Treffer",
+    "Kein Endlosschleifen-Risiko und kein ungeprueftes `inputResponses`-Eingabetor: Es gibt keinen Rueckfragepfad, und alle Eingaben laufen ueber Pydantic-Modelle mit `extra='forbid'` (server.py:198, 338, 398, 488, 587) — ein unbekanntes Feld wird abgewiesen statt uebernommen",
+    "Keine Korrelation ueber `elicitationId` noetig und keine vorhanden: `grep -rn 'elicitationId' src/` -> 0; es gibt keinen ausserhalb laufenden Vorgang, den der Server ueber Retries hinweg wiedererkennen muesste"
+  ],
+  "gaps": [
+    "Der Check ist hier weitgehend LEER erfuellt: der Server ist read-only und hat keinen einzigen Rueckfragepunkt. Das ist ein belegter Zustand, aber kein Beleg, dass MRTR richtig implementiert waere, falls je ein Werkzeug Eingaben nachfordern muesste",
+    "Nichts im Repo haelt diesen Zustand fest: kein Test und kein Satz in README/CONTRIBUTING sagt, dass der Server keine serverinitiierten Requests stellt. Faellt kuenftig ein `ctx.elicit()` in ein Werkzeug, meldet das kein Gate — anders als bei den Personen-Werkzeugen, fuer die tests/test_server.py:254-259 eine solche Zusicherung fuehrt",
+    "Modus 4 (voller Retry-Zyklus mit inputResponses) war nicht ausfuehrbar, weil es keinen input_required-Pfad gibt; bei `write_capable: false` verlangt der Check ihn auch nicht",
+    "Die Gegenprobe zur Idempotenz (Fassung ohne Schluessel, zwei Nebenwirkungen) ist gegenstandslos — es gibt keine Nebenwirkung, die sich verdoppeln koennte"
+  ]
+}

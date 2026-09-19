@@ -1,0 +1,17 @@
+{
+ "status": "partial",
+ "category": "ARCH",
+ "severity": "high",
+ "evidence": [
+  "ALLE 6 Tools tragen explizite Annotations, gemessen an `mcp.list_tools()` und zusaetzlich am Draht: der POST `tools/list` durch build_http_app() liefert pro Tool `{\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":true,\"readOnlyHint\":true,\"title\":\"...\"}`. Kein Tool verlaesst sich auf Defaults durch Weglassen.",
+  "Quelltext-Fundstellen: src/eth_library_mcp/server.py:246-255 (eth_search_resources), :358-366 (eth_get_resource), :422-430 (eth_search_archive), :513-521 (eth_search_by_type), :612-620 (eth_search_education), :689-697 (eth_library_info) — jeweils alle vier Hints plus `title`.",
+  "readOnlyHint konsistent mit dem Verhalten: alle 5 netzsprechenden Tools nutzen ausschliesslich `_http_get` (server.py:291, 379, 448, 544, 646). Suche nach `\\.(post|put|patch|delete)\\(` ueber src/*.py → 0 Treffer; Negativkontrolle gegen eine Probe-Datei mit `client.post(url)` und `c.delete(u)` → 2 Treffer, das Muster greift. Kein Tool traegt create/update/delete/remove im Namen (gemessene Tool-Liste).",
+  "idempotentHint=True ist korrekt: jeder Aufruf ist ein GET ohne Server-Zustandsaenderung; derselbe Aufruf liefert am gemockten Upstream dasselbe Resultat (selbst gefahren, respx).",
+  "openWorldHint differenziert: 5 Tools True (erreichen api.library.ethz.ch), eth_library_info False — und die Zusicherung ist getestet, nicht nur behauptet (tests/test_tools.py:183-188 `test_library_info_no_network`, ohne respx-Route; ein Netzaufruf wuerde dort scheitern).",
+  "destructiveHint ist bei allen 6 explizit auf False gesetzt statt weggelassen — der Default waere laut Spec True gewesen."
+ ],
+ "gaps": [
+  "Pass-Kriterium 6 unerfuellt: es gibt keine Annotations-Uebersicht in README.md, README.de.md oder docs/. Gemessen mit whitespace-normalisierter Suche nach readOnlyHint/destructiveHint/idempotentHint/openWorldHint/Annotation ueber README.md, README.de.md, docs/ARCHITECTURE.md, SECURITY.md, SECURITY.de.md: einziger Treffer ist SECURITY.md:29 bzw. SECURITY.de.md — eine Zeile 'Every tool sets readOnlyHint: True', keine Tabelle, und SECURITY.md ist keiner der vom Check akzeptierten Orte. Positivkontrolle: dieselbe Suche findet den Begriff dort, wo er steht (SECURITY.md), also greift sie.",
+  "Damit ist auch nicht dokumentiert, dass destructiveHint/idempotentHint/openWorldHint gesetzt sind und nach welcher Policy — die SECURITY-Zeile nennt nur readOnlyHint."
+ ]
+}
