@@ -1,0 +1,13 @@
+{"status": "pass", "category": "ARCH", "severity": "medium",
+ "evidence": [
+  "Alle drei Primitive sind registriert und zur Laufzeit abrufbar. Gemessen mit `mcp.list_tools()` / `mcp.list_resources()` / `mcp.list_prompts()` (PYTHONPATH=src): 6 Tools, 2 Resources, 2 Prompts.",
+  "Resources: src/eth_library_mcp/server.py:762 `@mcp.resource(\"eth://resource-types\")` und :768 `@mcp.resource(\"eth://archives\")`. Die Messung liefert beide mit URI, Beschreibung und mime_type text/plain.",
+  "Prompts: src/eth_library_mcp/server.py:779 `@mcp.prompt(\"research-workflow\")` und :793 `@mcp.prompt(\"education-research\")`, beide mit erforderlichem Argument `topic` (in der Messung: arguments=[{name: 'topic', required: True}]).",
+  "URI-Schema konsistent und dokumentiert: beide Resources nutzen dasselbe `eth://`-Schema mit sprechendem Pfad; README.md:174-181 und README.de.md:175-182 fuehren die Tabelle 'Resources & Prompts' mit allen vier Eintraegen, README.md:26 und README.de.md:26 nennen '6 Tools · 1 API · 2 Resources · 2 Prompts'.",
+  "Prompt-Liste ist kuratiert, nicht beliebig: genau zwei Templates, beide an dokumentierte Zielgruppen gebunden (EXAMPLES.md, Schulamt-Kontext), kein generisches Template-Verzeichnis.",
+  "Die Resources sind der korrekte Ort fuer die beiden statischen Referenzlisten (RESOURCE_TYPES server.py:89-100, ARCHIVE_SOURCES server.py:104-110) — die Read-only-Tools, die stattdessen Resources sein koennten, sind also bereits identifiziert und migriert; `server/discover` meldet gemessen `capabilities: {prompts, resources (subscribe/listChanged), tools}`."
+ ],
+ "gaps": [
+  "eth_library_info ist ein reines Read-only-, idempotentes, seiteneffektfreies Tool ohne Netzzugriff (annotations openWorldHint=False, tests/test_tools.py:183-188) und waere damit ein Kandidat fuer eine Resource. Der Check verlangt nur die Pruefung des Migrations-Potentials; dokumentiert ist sie nirgends.",
+  "Die Resource-Beschreibungen sind Einzeiler ohne mimeType-Feinsteuerung (JSON-Inhalt wird als text/plain ausgeliefert, server.py:764-772)."
+ ]}
