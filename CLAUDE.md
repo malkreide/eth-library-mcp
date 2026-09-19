@@ -419,18 +419,19 @@ Meldungen hat niemand eine Environment angelegt — und #58 hatte zehn Minuten
 **vor** der Meldung bereits vollständig durchlaufen. Die Environment war
 vorher da, währenddessen und danach.
 
-Damit steht fest:
+Damit steht fest: **Die Environment-Meldung ist kein Beleg, dass eine
+Environment fehlt.** Das ist gemessen, nicht geschlossen. Wer ihr folgt und
+eine anlegt, tut dasselbe wie der, der wegen «GitHub access is not enabled for
+this organization» einen Admin für ein Problem suchte, das keiner hatte.
 
-- **Die Environment-Meldung ist kein Beleg, dass eine Environment fehlt.** Das
-  ist gemessen, nicht geschlossen. Wer ihr folgt und eine anlegt, tut dasselbe
-  wie der, der wegen «GitHub access is not enabled for this organization» einen
-  Admin für ein Problem suchte, das keiner hatte.
-Hier stand daraufhin: «Auf einem Draft ist sie das, was Codex stattdessen
-ausgibt.» **Das hat siebzehn Minuten gehalten.** PR #60 desselben Repos, am
-selben Tag um 14:47:14 ebenfalls als Draft angelegt, bekam über 32 Minuten
-**gar keinen** Kommentar — keine Environment-Meldung, nichts. Der Draft-Zustand
-erzeugt die Meldung also nicht zuverlässig; #59 bekam sie nach zehn Sekunden,
-#60 nie.
+Hier stand daraufhin ein zweiter Schluss: «Auf einem Draft ist sie das, was
+Codex stattdessen ausgibt.» **Der hat siebzehn Minuten gehalten.** PR #60
+desselben Repos, am selben Tag um 14:47:14 ebenfalls als Draft angelegt, hatte
+43 Minuten später **gar keinen** Kommentar — keine Environment-Meldung, nichts.
+Der Draft-Zustand erzeugt die Meldung also nicht zuverlässig; #59 bekam sie
+nach zehn Sekunden, #60 in 43 Minuten nicht. («Nie» stand hier zuerst und wäre
+eine Aussage über die Zukunft eines offenen PR gewesen — gemessen ist die
+Spanne.)
 
 Was weiterhin **offen** ist, jetzt in zwei Richtungen:
 
