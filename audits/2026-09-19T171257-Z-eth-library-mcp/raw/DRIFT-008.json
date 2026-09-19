@@ -1,0 +1,18 @@
+{
+  "status": "partial",
+  "category": "DRIFT",
+  "severity": "high",
+  "evidence": [
+    "Vollstaendige Erhebung der autouse-Fixtures: `grep -rn 'autouse' tests/` liefert genau EINE — tests/test_transport_security.py:45 `_saubere_umgebung`, die `ETH_LIBRARY_CORS_ORIGINS` und `ETH_LIBRARY_ALLOWED_HOSTS` per `monkeypatch.delenv` aus der Umgebung nimmt (:52-53). Gegenkontrolle: dasselbe Muster findet im selben Lauf die Fixture, ist also nicht leer gelaufen",
+    "Ihr Geltungsbereich enthaelt nachweislich keinen Live-Test: GEMESSEN `pytest tests/test_transport_security.py -m live --collect-only` -> «no tests collected (10 deselected)». Die Fixture ist in einem Testmodul definiert und wirkt nur dort; es gibt kein conftest.py im Repo (`find . -name conftest.py` liefert 0 Treffer)",
+    "GEMESSEN wo die Live-Tests liegen: `pytest -m live --collect-only` sammelt genau zwei ein, beide in tests/test_server.py::TestLiveGatewayRoutes (test_discovery_route_still_exists, test_persons_route_is_still_gone). tests/test_server.py enthaelt keine Fixture — `grep -n 'fixture' tests/test_server.py` liefert 0 Treffer",
+    "Keine Ersetzung von Namensaufloesung oder Transport irgendwo in tests/: `grep -rn 'getaddrinfo|create_connection|freeze_time|AsyncHTTPTransport' tests/` liefert 0 Treffer in .py-Dateien; `respx` erscheint ausschliesslich als Dekorator `@respx.mock` an einzelnen Nicht-Live-Tests (tests/test_tools.py), nie als autouse",
+    "BEFUND: es gibt keinen Waechter. `grep -rn 'request.keywords' tests/` liefert 0 Treffer, es existiert weder ein `pytest_runtest_call`-Hook noch eine Datei, die den echten `socket.getaddrinfo` vor jeder Fixture festhaelt"
+  ],
+  "gaps": [
+    "Kein suiteweiter Waechter, der einen Live-Test abbricht, dessen Aussenwelt ersetzt wurde — ohne conftest.py gibt es gar keinen Ort dafuer. Der heutige Zustand ist sauber, aber nur durch Zufall der Dateiaufteilung: die erste autouse-Fixture in tests/test_server.py laeuft in dieselbe Falle",
+    "Die einzige autouse-Fixture (test_transport_security.py:45) nimmt Live-Tests nicht aus (`if 'live' in request.keywords: return` fehlt) — heute folgenlos, weil in ihrer Datei kein Live-Test steht, aber vorsorglich verlangt der Check die Zeile auch dort",
+    "Keine Gegenprobe in beide Richtungen: es existiert kein synthetischer Live-Test mit stubbender Fixture, der fallen muesste, und keiner, der gruen bleiben muss",
+    "Der echte Referenzwert (`_REAL_GETADDRINFO`) wird nirgends beim Import festgehalten"
+  ]
+}
