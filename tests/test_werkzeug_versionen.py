@@ -1,6 +1,6 @@
 """Die ruff-Version steht an genau einer Stelle — und soll dort bleiben.
 
-Hier ist sie es bereits: `ruff==0.16.1` im `dev`-Extra, kein Workflow nennt
+Hier ist sie es bereits: `ruff==0.16.5` im `dev`-Extra, kein Workflow nennt
 eine zweite. Festgehalten war das bisher nur in der CLAUDE.md, und ein Satz
 faellt nicht um, wenn der Zustand sich aendert — im Portfolio ist genau das
 mehrfach passiert, einmal sogar durch einen missglueckten Edit, der den
@@ -135,3 +135,42 @@ def test_der_erkenner_kennt_die_gaengigen_installationsformen() -> None:
     assert not uebersehen, f"Erkenner uebersieht: {uebersehen}"
     fehlalarm = [z for z in darf_nicht_treffen if _installiert_ruff(z)]
     assert not fehlalarm, f"Erkenner schlaegt faelschlich an: {fehlalarm}"
+
+
+# ─── Die Zahl, nicht nur die Struktur ────────────────────────────────────────
+
+# Die fettgesetzte Pin-Angabe im ruff-Abschnitt der CLAUDE.md. Bewusst eng: Der
+# Absatz dort fuehrt daneben die HISTORISCHEN Zahlen (`0.16.1`, `0.16.3`,
+# `0.16.4`) als Beleg dafuer, wie oft die Angabe schon verrottet ist. Die
+# stehen in einfachen Backticks und duerfen nicht mitgezogen werden — ein
+# breiteres Muster loeschte die Beweise fuer die eigene Notwendigkeit.
+_CLAUDE_MD_PIN = re.compile(r"\*\*`ruff==([^`]+)`\*\*")
+
+
+def _claude_md() -> str:
+    return (_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+
+
+def test_die_claude_md_nennt_den_gepinnten_ruff() -> None:
+    """Die Prosa-Zahl gegen `pyproject.toml`.
+
+    Die Zusicherungen oben pruefen die STRUKTUR — genau ein Pin, kein Workflow
+    mit einem zweiten. Die Zahl sahen sie nie an, und genau sie ist verrottet:
+    am 19.9.2026 nannte die CLAUDE.md `0.16.3` und der Docstring dieser Datei
+    `0.16.1`, waehrend `0.16.4` gepinnt war. Beim Nachziehen hob Dependabot
+    (PR #57) den Pin noch vor dem Commit auf `0.16.5` — derselbe Satz war
+    binnen einer Stunde zweimal falsch.
+
+    Eine von Hand gepflegte Zahl verliert gegen einen Bot, der schneller ist.
+    Also vergleichen statt ermahnen.
+    """
+    treffer = _CLAUDE_MD_PIN.findall(_claude_md())
+
+    assert len(treffer) == 1, (
+        f"erwartet genau eine fettgesetzte Pin-Angabe in der CLAUDE.md, gefunden: {treffer}"
+    )
+    gepinnt = next(d for d in _dev_abhaengigkeiten() if d.startswith("ruff"))
+    assert f"ruff=={treffer[0]}" == gepinnt, (
+        f"CLAUDE.md nennt ruff=={treffer[0]}, pyproject.toml pinnt {gepinnt}. "
+        "Beide im selben Commit bewegen — die CLAUDE.md ist, was Menschen lesen."
+    )
