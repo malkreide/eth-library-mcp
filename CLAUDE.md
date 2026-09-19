@@ -287,9 +287,10 @@ ein, den dieser Abschnitt verhindern soll, nur in die andere Richtung.
 sich an der Form: Ein Review **mit** Befund ist ein Review-Objekt
 («💡 Codex Review», mit Commit-Angabe); ein Review **ohne** Befund und die
 beiden Ausfallmeldungen — Kontingent wie Environment — sind gewöhnliche
-Issue-Kommentare und trennen sich nur im Text. Beim Draft gibt es überhaupt
-nichts, weil Codex nicht anläuft; ein kommentarloser Draft ist deshalb kein
-Beleg, sondern ein nicht durchgeführter Test.
+Issue-Kommentare und trennen sich nur im Text. Beim Draft läuft Codex nicht
+an; ein kommentarloser Draft ist deshalb kein Beleg, sondern ein nicht
+durchgeführter Test. Hier stand «Beim Draft gibt es überhaupt nichts» — das ist
+zu stark, siehe den Nachtrag unten.
 
 Das sind verschiedene Abfragen — `get_reviews` fürs Objekt, `get_comments` für
 alles andere; wer nur eine nimmt, übersieht den Rest. Genau so ist die
@@ -361,6 +362,44 @@ Neu nennt er einen dritten Auslöser: einen Kommentar «@codex review» bzw.
 «@codex security review». An der Reaktionsbehauptung ändert der neue Wortlaut
 nichts — der Reaktionszähler stand bei beiden Messungen auf 0, beim laufenden
 wie beim beendeten Review. Der Kasten bleibt keine Quelle.
+
+**Nachtrag desselben Tages: der Draft schweigt doch nicht — und die
+Environment-Meldung heisst nicht, was sie sagt.** Zehn Minuten nach dem Lauf
+oben bekam PR #59 dieses Repos, ein **Draft**, zehn Sekunden nach dem Anlegen
+genau eine Meldung:
+
+```
+To use Codex here, create an environment for this repo.
+```
+
+Das bricht zwei Annahmen gleichzeitig:
+
+- **Ein Draft bekommt sehr wohl etwas.** Nur eben kein Review. Die praktische
+  Folge bleibt — ein Draft ist ein nicht durchgeführter Test —, aber sie folgt
+  jetzt aus dem Inhalt der Meldung statt aus ihrem Ausbleiben.
+- **Die Meldung kann nicht heissen, was sie behauptet.** Für *dasselbe Repo*
+  lief um 14:19–14:20 ein vollständiger Review durch («Completed»); um 14:30
+  fehlt angeblich die Environment. Eine Environment, die zehn Minuten zuvor
+  gereicht hat, ist nicht plötzlich weg.
+
+Was daraus **nicht** folgt und hier bewusst offen bleibt: ob die Meldung in
+Wahrheit «auf einem Draft laufe ich nicht» bedeutet und bloss falsch
+beschriftet ist, ob ein zweiter Pfad die Environment anders auflöst, oder ob
+zwischen den beiden Zeitpunkten tatsächlich an der Konfiguration etwas geändert
+wurde. Drei Erklärungen, eine Beobachtung — das trägt keine davon.
+
+Praktisch: **Die Environment-Meldung ist kein Beleg, dass eine Environment
+fehlt.** Wer ihr folgt und eine anlegt, tut dasselbe wie der, der wegen
+«GitHub access is not enabled for this organization» einen Admin für ein
+Problem suchte, das keiner hatte. Erst die Positivkontrolle, die dieser
+Abschnitt ohnehin verlangt: lief im selben Repo kürzlich ein Review durch?
+
+Und ein Rückschlag auf die Reihenfolge weiter oben. Sie wurde daraus
+abgeleitet, dass in `swiss-public-data-mcp` erst die Kontingent- und tags
+darauf die Environment-Meldung kam. Diese Ableitung setzt voraus, dass die
+Environment-Meldung von der Environment handelt. Genau das ist jetzt fraglich —
+die Reihenfolge steht damit nicht widerlegt, aber auf schwächerem Grund als
+beim Aufschreiben.
 
 Und ein befundloser Lauf ist kein Freispruch. Am 23.8. lief derselbe Text durch
 42 Reviews: 36 meldeten denselben P2-Befund, 6 die Befundlos-Meldung — gleiche
