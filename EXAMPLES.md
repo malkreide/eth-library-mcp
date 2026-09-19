@@ -72,5 +72,5 @@ Warum nützlich: Demonstriert die Leistungsfähigkeit von Multi-Server-Abfragen,
 | **Nur einen bestimmten Medientyp (z. B. Karten oder Noten) finden** | `eth_search_by_type` | Ja |
 | **Gezielt nach pädagogischer Literatur und Lehrmitteln suchen** | `eth_search_education` | Ja |
 | **Die kompletten Metadaten und den Ausleihstatus eines Werks abrufen** | `eth_get_resource` | Ja |
-| **Nach Personen (Autoren, historische Figuren) im Katalog suchen** | `eth_search_persons` | Ja |
+| **Nach Personen (Autoren, historische Figuren) im Katalog suchen** | — kein Tool. Die Persons-API ist vom Gateway verschwunden (BUG-02), das Werkzeug wurde in 0.4.0 entfernt. Ersatzweise `eth_search_resources` mit `creator,contains,<Name>`. | — |
 | **Einen Überblick über alle verfügbaren Archive und Medientypen erhalten** | `eth_library_info` | Nein |

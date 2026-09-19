@@ -16,8 +16,8 @@ vulnerabilities.
 ## Posture summary
 
 This is a **read-only**, **no-PII**, **public-domain-metadata** MCP server. All
-7 tools only issue HTTP GET requests against a fixed allow-list of ETH Library
-endpoints (Discovery & Persons API — see `README.md`). Hardening already in
+6 tools only issue HTTP GET requests against a fixed allow-list of ETH Library
+endpoints (the Discovery API — see `README.md`). Hardening already in
 place:
 
 | Area | Control |
@@ -40,10 +40,12 @@ The audit (`audits/2026-05-28T142641-Z-eth-library-mcp/`) found 20 findings
 all **36/36 applicable checks PASS, 0 findings** as of `0.3.0`. See
 `CHANGELOG.md` for the hardening history.
 
-> ℹ️ **Note (BUG-02):** The `eth_search_persons` tool currently returns HTTP 404
-> because the Persons API endpoint URL needs verification. This is a
-> functionality bug, not a security issue — the tool remains read-only and
-> egress-gated like every other tool.
+> ℹ️ **Note (BUG-02, closed in `0.4.0`):** `eth_search_persons` is gone. The
+> Persons API is absent from the gateway, not merely locked — the gateway routes
+> *before* it checks the key, so an existing route answers `401` and a missing
+> one `404`. The egress allow-list is unchanged: Discovery and Persons always
+> shared the single host `api.library.ethz.ch`, so there was no Persons-only
+> entry to drop.
 
 ## Accepted risks (portfolio-level controls)
 

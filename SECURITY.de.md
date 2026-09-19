@@ -16,8 +16,8 @@ ausnutzbare Schwachstellen nicht über öffentliche Issues.
 ## Statusübersicht
 
 Dies ist ein **Nur-Lese-**, **PII-freier**, **Public-Domain-Metadaten**-MCP-Server.
-Alle 7 Tools stellen ausschliesslich HTTP-GET-Anfragen an eine feste Allow-List
-von Endpunkten der ETH-Bibliothek (Discovery- & Persons-API — siehe `README.md`).
+Alle 6 Tools stellen ausschliesslich HTTP-GET-Anfragen an eine feste Allow-List
+von Endpunkten der ETH-Bibliothek (Discovery-API — siehe `README.md`).
 Bereits umgesetzte Härtung:
 
 | Bereich | Kontrolle |
@@ -40,10 +40,12 @@ Das Audit (`audits/2026-05-28T142641-Z-eth-library-mcp/`) fand 20 Findings
 seit `0.3.0` **36/36 anwendbare Checks PASS, 0 Findings**. Die Härtungshistorie
 steht in `CHANGELOG.md`.
 
-> ℹ️ **Hinweis (BUG-02):** Das Tool `eth_search_persons` gibt derzeit HTTP 404
-> zurück, weil die Persons-API-Endpunkt-URL verifiziert werden muss. Das ist ein
-> Funktionsfehler, kein Sicherheitsproblem — das Tool bleibt nur lesend und
-> egress-gegated wie jedes andere Tool.
+> ℹ️ **Hinweis (BUG-02, geschlossen in `0.4.0`):** `eth_search_persons` gibt es
+> nicht mehr. Die Persons-API fehlt am Gateway, sie ist nicht bloss gesperrt —
+> das Gateway routet *vor* der Schlüsselprüfung, eine bestehende Route antwortet
+> `401`, eine fehlende `404`. Die Egress-Allow-List bleibt unverändert: Discovery
+> und Persons teilten sich immer den einen Host `api.library.ethz.ch`, es gab also
+> keinen Persons-Eintrag zu streichen.
 
 ## Akzeptierte Restrisiken (Kontrollen auf Portfolio-Ebene)
 

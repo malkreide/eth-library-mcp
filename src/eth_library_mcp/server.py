@@ -7,9 +7,10 @@ Ressourcen der grössten naturwissenschaftlichen Bibliothek der Schweiz.
 
 APIs:
   - Discovery API:          30+ Mio. Bücher, Bilder, Zeitschriften, Karten
-  - Persons API:            Personen mit Linked-Data-Anreicherung (Wikidata)
-                            ⚠ Endpunkt-URL muss via developer.library.ethz.ch
-                              verifiziert werden (BUG-02 – aktuelle URL gibt 404)
+
+  Die Persons-API wird nicht mehr angesprochen: Sie ist vom Gateway
+  verschwunden, nicht gesperrt (BUG-02, geschlossen in 0.4.0). Der Nachweis
+  steht datiert in tests/fixtures/api_routes.json.
 
 Authentifizierung:
   Kostenloser API-Key via https://developer.library.ethz.ch
