@@ -33,6 +33,8 @@ from mcp.server.caching import CacheableMethod, CacheHint
 from mcp.server.mcpserver import Context, MCPServer
 from pydantic import BaseModel, ConfigDict, Field
 
+from eth_library_mcp import DESCRIPTION, HOMEPAGE_URL, __version__
+
 # Re-exports halten den Public-API-Pfad `eth_library_mcp.server.X` stabil.
 from eth_library_mcp.client import (  # noqa: F401
     ALLOWED_EGRESS_HOSTS,
@@ -141,8 +143,33 @@ CACHE_HINTS: dict[CacheableMethod, CacheHint] = {
     "server/discover": CacheHint(ttl_ms=LIST_CACHE_TTL_MS, scope="public"),
 }
 
+# Spec 2026-07-28 stempelt die Server-Identitaet in JEDE Antwort der modernen
+# Aera (`_meta.io.modelcontextprotocol/serverInfo`, spec #3002) — nicht nur in
+# den Handshake, wie es die Aeren davor taten. Wer sie nicht setzt, wiederholt
+# sie damit tausendfach leer statt einmal.
+#
+# `version` ist im `Implementation` der Revision ein PFLICHTFELD. Das SDK setzt
+# nichts ein: «An unversioned server reports an empty `version`; the SDK never
+# substitutes its own» (`mcp/server/lowlevel/server.py::server_info`). Gemessen
+# am zusammengebauten ASGI-Stack hiess das hier `"version": ""` — in beiden
+# Aeren, bei jedem Aufruf. `server.json` meldete der Registry derweil `0.3.4`:
+# Das Manifest sagte mehr ueber diesen Server aus als der Server selbst.
+#
+# `title` ist der einzige Wert ohne Quelle ausserhalb: `name` ist der
+# programmatische Bezeichner, `title` der Anzeigename fuer Menschen. Version,
+# Beschreibung und Homepage kommen aus den Paket-Metadaten (`__init__.py`) und
+# koennen deshalb nicht von `pyproject.toml` wegdriften.
+#
+# `icons` bleibt bewusst leer: das Repo fuehrt keine, und ein erfundener Pfad
+# waere eine Zusicherung ueber eine Datei, die es nicht gibt.
+SERVER_TITLE = "ETH-Bibliothek Zürich"
+
 mcp = MCPServer(
     "eth_library_mcp",
+    title=SERVER_TITLE,
+    version=__version__,
+    description=DESCRIPTION,
+    website_url=HOMEPAGE_URL,
     cache_hints=CACHE_HINTS,
     instructions=(
         "MCP Server für die ETH-Bibliothek Zürich. "

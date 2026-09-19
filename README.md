@@ -288,6 +288,35 @@ the spec changelog between the two revisions, verify the server still behaves,
 then move the constant, this section, `README.de.md` and
 [`CHANGELOG.md`](CHANGELOG.md) together.
 
+### Server identity (`serverInfo`)
+
+`2026-07-28` stamps the server's `Implementation` block into **every** modern
+result under `_meta.io.modelcontextprotocol/serverInfo` (spec #3002) — earlier
+revisions carried it only in the `initialize` result. What used to be a
+one-time field is now repeated on every call, and `version` is required.
+
+The SDK fills none of it: *"An unversioned server reports an empty `version`;
+the SDK never substitutes its own."* Measured against the assembled ASGI stack,
+this server used to answer `"version": ""` in both eras while `server.json`
+told the registry `0.3.4`. It now declares:
+
+| Field | Value | Source |
+|---|---|---|
+| `name` | `eth_library_mcp` | the programmatic identifier |
+| `title` | ETH-Bibliothek Zürich | `SERVER_TITLE` in `server.py` — the only value with no source outside |
+| `version` | the installed distribution's version | `importlib.metadata`, so it cannot drift from `pyproject.toml` |
+| `description` | the distribution summary | `importlib.metadata` |
+| `websiteUrl` | the `Homepage` project URL | `importlib.metadata` |
+
+`icons` stays unset: this repository ships none, and an invented path would
+assert a file that does not exist.
+
+Measured, not read back, in
+[`tests/test_server_identity.py`](tests/test_server_identity.py): the
+assertions drive a real modern POST through `build_http_app()`. A look at
+`mcp.version` would stay green even if the constructor argument were lost or
+the SDK stopped stamping at all.
+
 ---
 
 ## Testing

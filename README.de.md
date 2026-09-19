@@ -290,6 +290,36 @@ das Spec-Changelog zwischen den beiden Revisionen lesen, pruefen, ob sich der
 Server weiterhin richtig verhaelt, dann Konstante, diesen Abschnitt, `README.md`
 und [`CHANGELOG.md`](CHANGELOG.md) gemeinsam bewegen.
 
+### Server-Identitaet (`serverInfo`)
+
+`2026-07-28` stempelt den `Implementation`-Block des Servers in **jedes**
+Resultat der modernen Aera, unter
+`_meta.io.modelcontextprotocol/serverInfo` (spec #3002) — die Revisionen davor
+fuehrten ihn nur im `initialize`-Resultat. Aus einem einmaligen Feld wird damit
+eine Angabe, die bei jedem Aufruf wiederholt wird, und `version` ist Pflicht.
+
+Das SDK fuellt nichts davon: «An unversioned server reports an empty `version`;
+the SDK never substitutes its own». Am zusammengebauten ASGI-Stack gemessen
+antwortete dieser Server mit `"version": ""` — in beiden Aeren —, waehrend
+`server.json` der Registry `0.3.4` meldete. Jetzt deklariert er:
+
+| Feld | Wert | Quelle |
+|---|---|---|
+| `name` | `eth_library_mcp` | der programmatische Bezeichner |
+| `title` | ETH-Bibliothek Zürich | `SERVER_TITLE` in `server.py` — der einzige Wert ohne Quelle ausserhalb |
+| `version` | Version der installierten Distribution | `importlib.metadata`, kann daher nicht von `pyproject.toml` wegdriften |
+| `description` | Kurzbeschreibung der Distribution | `importlib.metadata` |
+| `websiteUrl` | die Projekt-URL `Homepage` | `importlib.metadata` |
+
+`icons` bleibt ungesetzt: das Repo fuehrt keine, und ein erfundener Pfad waere
+eine Zusicherung ueber eine Datei, die es nicht gibt.
+
+Gemessen statt zurueckgelesen, in
+[`tests/test_server_identity.py`](tests/test_server_identity.py): die
+Zusicherungen fahren einen echten modernen POST durch `build_http_app()`. Ein
+Blick auf `mcp.version` bliebe auch dann gruen, wenn das Konstruktor-Argument
+verlorenginge oder das SDK gar nicht mehr stempelte.
+
 ---
 
 ## Tests
