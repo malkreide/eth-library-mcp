@@ -31,7 +31,7 @@ Bereits umgesetzte Härtung:
 | Fehler | Upstream-Fehlerbodies und Exception-Klassennamen werden nie an den LLM geleakt; das Modell erhält eine generische, nicht-leckende Meldung. Details landen im strukturierten stderr-Log (OBS-002) |
 | Logging | Strukturiertes JSON-Logging via `structlog`, auf stderr gepinnt; der stdio-JSON-RPC-stdout-Stream bleibt sauber (OBS-003/004) |
 | Sandbox | Multi-stage-`Dockerfile` auf Slim-Base, läuft als Non-Root UID 1000; empfohlene Laufzeit `--read-only --tmpfs /tmp` (SEC-007) |
-| Dependencies | Upper Bounds auf alle Dependencies gepinnt (`mcp[cli]>=1.0.0,<2.0.0`, `httpx>=0.27.0,<1.0.0`, `pydantic>=2.0.0,<3.0.0`) (ARCH-012) |
+| Dependencies | Upper Bounds auf alle Dependencies gepinnt (`mcp[cli]>=2.0.0,<3`, `httpx>=0.27.0,<1.0.0`, `pydantic>=2.0.0,<3.0.0`, `structlog>=24.0.0,<27.0.0`) (ARCH-012) |
 | Resilienz | Ein 30s-Timeout pro Anfrage (`REQUEST_TIMEOUT`) begrenzt jeden Upstream-Aufruf (SCALE-002/003) |
 
 Das Audit (`audits/2026-05-28T142641-Z-eth-library-mcp/`) fand 20 Findings

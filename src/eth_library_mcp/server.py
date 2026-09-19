@@ -176,7 +176,6 @@ mcp = MCPServer(
         "MCP Server für die ETH-Bibliothek Zürich. "
         "Bietet Zugriff auf über 30 Millionen Bücher, Zeitschriften, Bilder, Karten "
         "und Archivmaterialien via Discovery API (api.library.ethz.ch). "
-        "Ebenfalls verfügbar: Personen-Suche mit Wikidata-Verlinkung. "
         "Bekannte Archive: Hochschularchiv ETH, Max Frisch Archiv, Thomas-Mann-Archiv, "
         "Graphische Sammlung, Bildarchiv (E-Pics). "
         "Für den Zugriff ist ein kostenloser API-Key erforderlich "
@@ -710,7 +709,7 @@ async def eth_library_info() -> str:
 
     return f"""# ETH Library MCP Server
 
-**Version:** 0.3.0
+**Version:** {__version__}
 **API-Key Status:** {key_status}
 **Basis-URL:** https://api.library.ethz.ch
 

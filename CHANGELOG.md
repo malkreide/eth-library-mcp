@@ -7,6 +7,95 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.1] – 2026-09-19
+
+Ein Sicherheitsfix und vier Stellen, an denen 0.4.0 etwas Falsches ueber sich
+selbst gesagt hat. Alle fuenf stammen aus dem Re-Audit gegen den 120-Check-
+Katalog (`audits/2026-09-19T171257-Z-eth-library-mcp/`).
+
+### 🔐 Sicherheit — der API-Schluessel stand im Klartext im Log
+
+- **`ETH_LIBRARY_API_KEY` wurde bei **jeder** Anfrage nach stderr
+  protokolliert.** Nicht vom eigenen Log dieses Servers — `client.py` schreibt
+  `has_key=True` statt des Werts —, sondern von httpx: `configure_logging()`
+  stellt den Root-Logger auf INFO, und httpx gibt dabei die vollstaendige URL
+  aus, samt des als Query-Parameter angehaengten Schluessels. Gemessen:
+
+  ```
+  HTTP Request: GET .../resources?q=test&apikey=sk-GEHEIM-… "HTTP/1.1 200 OK"
+  ```
+
+  `SECURITY.md` und `docs/secret-management.md` sagten beide woertlich, der
+  Schluessel werde nie geloggt. Beide Saetze waren seit `0.1.0` falsch.
+
+  **Wer 0.4.0 oder frueher produktiv betrieben hat, sollte den Schluessel als
+  kompromittiert behandeln** und ihn unter developer.library.ethz.ch neu
+  ausstellen lassen — jedenfalls dann, wenn die stderr-Ausgabe irgendwo
+  aufgezeichnet wurde: in einem Log-Shipper, einer Container-Runtime, einer
+  CI-Ausgabe oder einem Terminal-Mitschnitt.
+
+- **Redigiert wird jetzt bei der Erzeugung jedes Logdatensatzes**
+  (`logging.setLogRecordFactory`) und zusaetzlich als structlog-Prozessor. Zwei
+  Stellen, weil die beiden Logwege dieses Servers sich keinen Ausgang teilen:
+  structlog schreibt direkt nach stderr und kommt an den stdlib-Handlern gar
+  nicht vorbei.
+
+  Die erste Fassung war ein Filter am Handler. Sie funktionierte — und ein Test
+  zeigte, dass sie von der **Handler-Reihenfolge** abhing: Ein zweiter Handler
+  am selben Logger haette den Datensatz vor der Redaktion zu sehen bekommen.
+  Ein Geheimnisschutz, der von einer Reihenfolge abhaengt, ist keiner.
+
+  **Was hier nicht behoben ist:** Der Schluessel steht weiterhin in der URL. Ihn
+  in einen Header zu verschieben waere die Behebung an der Wurzel, aendert aber
+  die Authentisierung gegenueber der Quelle — und ob die ETH-API einen Header
+  akzeptiert, ist ohne Schluessel und ohne Netzzugang nicht pruefbar. Eine
+  Vermutung darueber gehoert nicht in den Auslieferungspfad.
+
+### Behoben — vier Stellen, die 0.4.0 uebersehen hat
+
+Der 0.4.0-Eintrag unten fuehrt dieselbe Aufraeumarbeit fuer `pyproject.toml`,
+`server.json`, beide READMEs, `EXAMPLES.md` und `docs/` auf. Diese vier standen
+nicht auf der Liste:
+
+- **Die `instructions` bewarben `eth_search_persons`** («Ebenfalls verfuegbar:
+  Personen-Suche mit Wikidata-Verlinkung») — also das Werkzeug, das derselbe
+  Release entfernt hat. Sie gehen im Handshake und in `server/discover` an jeden
+  Client. Der Server stellte sich mit einer Faehigkeit vor, die sein eigener
+  Test (`test_no_tool_still_offers_the_persons_api`) verbietet.
+- **`eth_library_info` meldete `**Version:** 0.3.0`**, waehrend das Paket bei
+  0.4.0 stand. Das ist die einzige Versionsangabe, die ein Nutzer dieses Servers
+  zu sehen bekommt.
+- **`SECURITY.md` und `SECURITY.de.md` nannten `mcp[cli]>=1.0.0,<2.0.0`**,
+  gepinnt ist `>=2.0.0,<3` — die Deckel der Vorgaenger-Major.
+- **`README.de.md` nannte Protokollversion `2025-06-18`.** Die englische Fassung
+  war in 0.4.0 auf `2026-07-28` nachgezogen worden, die deutsche nicht; sie
+  widersprach sich damit selbst, weil ihr eigener Abschnitt weiter unten
+  `2026-07-28` fuehrt.
+
+Ausserhalb dieses Repos liegt eine fuenfte Stelle: Die **Repository-Beschreibung
+auf GitHub** sagt weiterhin «via Discovery & Persons API». Sie hat kein Gate und
+laesst sich nur in den Repository-Einstellungen aendern.
+
+### Geaendert — Gates, die jetzt hinsehen
+
+- **`scripts/check_version_sync.py` erkennt eine dritte Form.** Bisher kannte es
+  den User-Agent und die `__version__`-Zuweisung. Die Zahl in
+  `eth_library_info` stand in keiner von beiden Formen, und das Gate meldete
+  ausdruecklich «keine hartkodierte Version in src/» und exitete 0. Es war nicht
+  zu schwach eingestellt — es hat an dieser Stelle nicht hingesehen. Das ist die
+  teuerste Sorte Fehlbefund, weil ein gruenes Gate die Beschaeftigung mit der
+  Frage beendet.
+- **Neue Tests** (`tests/test_geheimnis_redaktion.py`,
+  `tests/test_selbstauskunft.py`, 15 Faelle). Jede Zusicherung ist einzeln
+  neutralisiert und die zugehoerigen Tests fallen gesehen worden.
+
+  Die Gegenprobe hat dabei einen Fehler in einem der neuen Tests selbst
+  gefunden: Der Deckel-Vergleich trennte den Paketnamen auf der einen Seite an
+  `[` und auf der anderen nicht, fand `mcp[cli]` deshalb nie im Woerterbuch und
+  uebersprang ihn stillschweigend. Er blieb gruen, als die Mutation genau den
+  Deckel zuruecksetzte, gegen den er geschrieben ist — dieselbe Fehlerklasse,
+  gegen die dieser Release antritt, im Werkzeug dagegen.
+
 ## [0.4.0] – 2026-09-19
 
 Zwei brechende Aenderungen, beide bewusst: Die CORS-Wildcard ist gefallen, und

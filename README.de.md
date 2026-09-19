@@ -2,7 +2,7 @@
 
 # 🏛️ eth-library-mcp
 
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.4.1-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple)](https://modelcontextprotocol.io/)
@@ -25,7 +25,7 @@
 
 **6 Tools · 1 API · 2 Resources · 2 Prompts**
 
-**MCP-Protokollversion:** [`2025-06-18`](https://modelcontextprotocol.io/specification/) (via `mcp[cli]>=1.0.0,<2.0.0`).
+**MCP-Protokollversion:** [`2026-07-28`](https://modelcontextprotocol.io/specification/) (via `mcp[cli]>=2.0.0,<3`).
 
 > **BUG-02 ist erledigt — durch Entfernen des Werkzeugs.** `eth_search_persons` stand
 > als «aktuell nicht funktionsfähig, korrekte URL zu verifizieren» im README. Verifiziert

@@ -31,7 +31,7 @@ place:
 | Errors | Upstream error bodies and exception class names are never leaked to the LLM; the model receives a generic, non-leaking message. Details land in the structured stderr log (OBS-002) |
 | Logging | Structured JSON logging via `structlog`, pinned to stderr; the stdio JSON-RPC stdout stream stays clean (OBS-003/004) |
 | Sandbox | Multi-stage `Dockerfile` on a slim base, running as non-root UID 1000; recommended runtime `--read-only --tmpfs /tmp` (SEC-007) |
-| Dependencies | Upper bounds pinned on all dependencies (`mcp[cli]>=1.0.0,<2.0.0`, `httpx>=0.27.0,<1.0.0`, `pydantic>=2.0.0,<3.0.0`) (ARCH-012) |
+| Dependencies | Upper bounds pinned on all dependencies (`mcp[cli]>=2.0.0,<3`, `httpx>=0.27.0,<1.0.0`, `pydantic>=2.0.0,<3.0.0`, `structlog>=24.0.0,<27.0.0`) (ARCH-012) |
 | Resilience | A 30s per-request timeout (`REQUEST_TIMEOUT`) bounds every upstream call (SCALE-002/003) |
 
 The audit (`audits/2026-05-28T142641-Z-eth-library-mcp/`) found 20 findings
