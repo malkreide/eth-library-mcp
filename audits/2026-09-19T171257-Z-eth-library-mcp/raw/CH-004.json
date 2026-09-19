@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "category": "CH",
+  "severity": "medium",
+  "evidence": [
+    "src/eth_library_mcp/formatting.py:20 — `SOURCE_ATTRIBUTION = \"Quelle: ETH-Bibliothek (Public Domain) · https://developer.library.ethz.ch\"`, eine Konstante, kein wiederholtes Literal. Sie nennt Anbieter UND Lizenz",
+    "Sie haengt an jeder datentragenden Antwort: server.py:321 (eth_search_resources), :472 (eth_search_archive), :568 (eth_search_by_type), :676 (eth_search_education) und formatting.py:107 (`_format_resource_detail`, also eth_get_resource). GEMESSEN mit respx: Trefferliste -> Zeile vorhanden (True); Detailansicht -> vorhanden (True)",
+    "docs/data-sources.md:8-12 fuehrt die Quelle vollstaendig als Tabelle: Discovery-API, Endpunkt `https://api.library.ethz.ch/discovery/v1`, gelieferte Datenarten, Lizenz «Public Domain (CC0)». docs/data-sources.md:14-26 haelt zusaetzlich die Lizenzlage der ueber die entfernte Persons-API erreichbaren Linked-Data-Quellen (Wikidata, Metagrid, DNB Entityfacts, beacon — alle CC0) auf Vorrat fest und sagt ausdruecklich, dass heute kein Werkzeug sie liefert",
+    "docs/data-sources.md:28-36 nennt die Attributionslage praezise statt pauschal: «All upstream data is Public Domain and does not require attribution under copyright law. The `Quelle:` line is included anyway as a courtesy». Das ist die vom Check verlangte Genauigkeit — Public Domain / CC0 verlangt keine BY-Attribution, sie wird trotzdem mitgefuehrt",
+    "Keine Lizenzkonflikte und nur eine Quelle: `grep -rnE 'CC BY-SA|CC BY-NC|CC BY-ND' src/ docs/ README*.md` liefert 0 Treffer. Gegenkontrolle: dasselbe Muster gegen eine Probedatei mit «CC BY-NC 4.0» liefert 1 — das Muster greift. Bei nur einer Upstream-Quelle (Discovery) ist die Provenance je Datensatz eindeutig, eine Aggregation ueber mehrere Lizenzen findet nicht statt",
+    "README.md:356/381-384 und README.de.md:360/386-389 trennen die Lizenzen sauber: Servercode MIT, bibliografische Metadaten Public Domain, API-Zugang nach den Bedingungen des ETH-Entwicklerportals"
+  ],
+  "gaps": [
+    "docs/data-sources.md:3-6 behauptet «Every tool response carries the line». GEMESSEN stimmt das nicht fuer drei Zweige: die leere Treffermenge («Keine Ergebnisse fuer 'any,contains,xyzq'.»), der Fehlerpfad («Fehler bei Suche nach …: HTTP-Fehler 503.») und `eth_library_info` tragen die Zeile nicht. Inhaltlich unschaedlich (keiner der drei transportiert OGD-Daten), aber die Doku sagt mehr, als sie haelt — dieselbe Klasse wie die DRIFT-006-Befunde",
+    "Die Attribution steht einmal je ANTWORT, nicht je DATENSATZ: in einer Trefferliste mit 100 Eintraegen haengt eine Zeile am Ende. Bei einer Quelle vertretbar; sobald eine zweite hinzukaeme, waere die Zuordnung je Eintrag nicht mehr gegeben",
+    "Die Angabe ist Markdown-Prosa, kein Feld: `grep -rE '\"source\"|\"license\"|\"provenance\"' src/` liefert 0 Treffer. Ein JSON-Konsument des `structuredContent` bekommt die Lizenz nur, wenn er den Text parst (siehe SDK-002)",
+    "Kein Test haelt fest, dass die Zeile an jeder datentragenden Antwort haengt — `grep -rn 'SOURCE_ATTRIBUTION' tests/` liefert 0 Treffer; die Zusicherung stammt aus diesem Audit, nicht aus der Suite"
+  ]
+}
