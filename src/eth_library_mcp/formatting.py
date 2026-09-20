@@ -136,14 +136,42 @@ def _format_resource_detail(doc: dict[str, Any]) -> str:
     return "\n".join(filter(None, lines))
 
 
-def _wiederholungsrat(e: Exception) -> str:
-    """SEC-028: Der Wiederholungsrat entscheidet sich am Diskriminator.
+def _ist_wiederholbar(e: Exception) -> bool:
+    """Die eine Stelle, an der die Wiederholungsfrage entschieden wird (SEC-028).
 
-    Gelesen wird `retryable` — ein Feld —, nicht der Typname und nicht der
-    Meldungstext. Wer das Attribut auf einer Egress-Ausnahme umstellt, stellt
-    damit auch die Auskunft an den Aufrufer um; genau das prüft die Gegenprobe.
+    Vorrang hat das Feld `retryable` — ein Wert, den Code liest, nicht der
+    Typname und nicht der Meldungstext. Wer es auf einer Egress-Ausnahme
+    umstellt, stellt damit auch die Auskunft an den Aufrufer um; genau das
+    prüft die Gegenprobe.
+
+    Darunter, und nur darunter, steht ein Rückfall am Typ. Die httpx-Klassen
+    führen kein solches Feld, und eines anzuflanschen hiesse, fremde Klassen zu
+    bemalen. Wo ein Feld da ist, gewinnt es — der Rückfall kann eine gesetzte
+    Marke nicht überstimmen.
+
+    Wiederholbar ist, was beim nächsten Versuch anders ausfallen kann: ein
+    Zeitablauf, ein Verbindungsabbruch, ein 429 und ein 5xx. Alles übrige fällt
+    gleich aus, ein Programmfehler in diesem Server zuallererst.
     """
-    return WIEDERHOLUNG_MOEGLICH if getattr(e, "retryable", False) else KEINE_WIEDERHOLUNG
+    marke = getattr(e, "retryable", None)
+    if marke is not None:
+        return bool(marke)
+    if isinstance(e, (httpx.TimeoutException, httpx.ConnectError)):
+        return True
+    if isinstance(e, httpx.HTTPStatusError):
+        status = e.response.status_code
+        return status == 429 or status >= 500
+    return False
+
+
+def _wiederholungsrat(e: Exception) -> str:
+    """Der Satz zur Entscheidung aus `_ist_wiederholbar`.
+
+    Er steht an JEDEM Zweig von `_handle_error`, genau einmal. Ein Zweig ohne
+    ihn überliesse die Wiederholungsfrage dem Tonfall der übrigen Wörter —
+    und genau daran ist SEC-028 aufgefallen.
+    """
+    return WIEDERHOLUNG_MOEGLICH if _ist_wiederholbar(e) else KEINE_WIEDERHOLUNG
 
 
 def _handle_error(
@@ -166,6 +194,11 @@ def _handle_error(
     Kontext-spezifische 404-Meldung:
       is_search=True  → Endpunkt nicht gefunden (NICHT: Leermenge)
       is_search=False → Ressource mit dieser ID nicht gefunden
+
+    SEC-028: **Jeder** Zweig schliesst mit genau einem der beiden Sätze aus
+    `_wiederholungsrat`. Die Wiederholungsfrage ist damit an jeder Ausgabe
+    beantwortet und nicht bloss am Tonfall der übrigen Wörter abzulesen —
+    ein Zweig, der sie offenlässt, überlässt die Entscheidung dem Modell.
     """
     prefix = f"Fehler bei {context}: " if context else "Fehler: "
 
@@ -173,7 +206,9 @@ def _handle_error(
     # fiel er in den generischen Schlusszweig und kam als «Unbekannter Fehler.
     # Bitte später erneut versuchen.» an — zeichengleich mit einem
     # ValueError, und mit einem Wiederholungsrat für eine Absage, die bei
-    # jedem Versuch gleich ausfällt.
+    # jedem Versuch gleich ausfällt. Den Wiederholungsrat im Schlusszweig hat
+    # erst der 20.9.2026 geraeumt; der Satz oben zitiert 0.4.1 und nicht den
+    # Stand darunter.
     #
     # Die Grenze dieses Zweigs, damit sie niemand fuer eine Entscheidung haelt:
     # Der Wortlaut passt zu jeder Abweisung, die dieser Guard heute erzeugt --
@@ -199,11 +234,12 @@ def _handle_error(
         if status == 401:
             return (
                 f"{prefix}Kein gültiger API-Key. "
+                f"{_wiederholungsrat(e)} "
                 "Bitte ETH_LIBRARY_API_KEY Umgebungsvariable setzen. "
                 "Kostenlose Registrierung: https://developer.library.ethz.ch"
             )
         elif status == 403:
-            return f"{prefix}Zugriff verweigert (HTTP 403)."
+            return f"{prefix}Zugriff verweigert (HTTP 403). {_wiederholungsrat(e)}"
         elif status == 404:
             if is_search:
                 # FID-003: Hier stand «Keine Ergebnisse oder Endpunkt nicht
@@ -214,28 +250,51 @@ def _handle_error(
                 return (
                     f"{prefix}Der Suchendpunkt wurde nicht gefunden (HTTP 404). "
                     "Das ist KEINE Leermenge: Die Abfrage ist nicht beantwortet "
-                    "worden, es wurde nicht gesucht. Basis-URL und Endpunkt "
-                    "prüfen — eine breitere Suchanfrage hilft hier nicht."
+                    f"worden, es wurde nicht gesucht. {_wiederholungsrat(e)} "
+                    "Basis-URL und Endpunkt prüfen — eine breitere Suchanfrage "
+                    "hilft hier nicht."
                 )
             else:
                 return (
                     f"{prefix}Ressource mit dieser ID nicht gefunden (HTTP 404). "
-                    "Bitte MMS-ID prüfen."
+                    f"{_wiederholungsrat(e)} Bitte MMS-ID prüfen."
                 )
         elif status == 429:
-            return f"{prefix}Rate-Limit erreicht (HTTP 429). Bitte kurz warten."
+            return (
+                f"{prefix}Rate-Limit erreicht (HTTP 429). {_wiederholungsrat(e)} Bitte kurz warten."
+            )
         # OBS-002: Upstream-Response-Body NICHT durchreichen — er kann Proxy-
         # Errors, Stacktraces oder andere Internals enthalten.
-        return f"{prefix}HTTP-Fehler {status}."
+        return f"{prefix}HTTP-Fehler {status}. {_wiederholungsrat(e)}"
     elif isinstance(e, httpx.TimeoutException):
-        return f"{prefix}Zeitüberschreitung. ETH-Bibliothek API nicht erreichbar."
+        return (
+            f"{prefix}Zeitüberschreitung. ETH-Bibliothek API nicht erreichbar. "
+            f"{_wiederholungsrat(e)}"
+        )
     elif isinstance(e, httpx.ConnectError):
-        return f"{prefix}Verbindungsfehler. Internetverbindung prüfen."
-    # OBS-002: Generischer Fall — interne Exception-Klasse + str(e) leaken
-    # Implementations-Details an den LLM. Stattdessen generische Meldung,
-    # Details landen in stderr-Log.
+        return f"{prefix}Verbindungsfehler. Internetverbindung prüfen. {_wiederholungsrat(e)}"
+    # Was hier ankommt, ist keine Auskunft der Quelle mehr. Ein AttributeError,
+    # ein KeyError, ein TypeError entsteht in DIESEM Server — und zwar
+    # deterministisch: Dieselbe Antwort erzeugt beim naechsten Aufruf denselben
+    # Fehler. Bis hierher stand an dieser Stelle «Unbekannter Fehler. Bitte
+    # später erneut versuchen.», also ein Wiederholungsrat fuer eine Lage, die
+    # sich durch Wiederholen nicht aendert. Der Fehler, der diesen Absatz
+    # veranlasst hat, ist genau so durchgerutscht: Der MMS-ID-AttributeError
+    # traf JEDE Suche mit mindestens einem Treffer und erreichte den Aufrufer
+    # als Stoerung, die sich gleich legen werde.
+    #
+    # OBS-002 bleibt unberuehrt: Exception-Klasse und `str(e)` gehen ins
+    # stderr-Log, nicht an den Aufrufer. Die Meldung sagt deshalb, WO die
+    # Einzelheiten stehen, statt sie mitzuliefern — fuer den Betreiber ist das
+    # der naechste Schritt, und einen anderen gibt es hier nicht.
     log.error("unhandled_exception", exc_type=type(e).__name__, exc=str(e))
-    return f"{prefix}Unbekannter Fehler. Bitte später erneut versuchen."
+    return (
+        f"{prefix}Dieser Server konnte die Anfrage nicht verarbeiten. Das ist "
+        "ein Fehler in diesem Server, keine Störung der Quelle. "
+        f"{_wiederholungsrat(e)} "
+        "Die Einzelheiten stehen im stderr-Log des Servers, unter dem Ereignis "
+        "'unhandled_exception'."
+    )
 
 
 def ergebnis(

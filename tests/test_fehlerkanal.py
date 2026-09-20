@@ -398,3 +398,261 @@ async def test_eine_gescheiterte_suche_traegt_keinen_leermengen_hinweis():
     for verbreiterung in ("Breiter suchen", "Trunkierung", "englischen Begriff"):
         assert verbreiterung not in meldung
     assert "ETH_LIBRARY_API_KEY" in meldung
+
+
+# ══ SEC-028, zweiter Durchgang: der Programmfehler ist keine Stoerung ═════
+#
+# Der erste Durchgang hat den Egress-Zweig aus dem generischen Schluss
+# herausgeloest. Was dort liegenblieb, war derselbe Fehler eine Ebene weiter:
+# «Unbekannter Fehler. Bitte spaeter erneut versuchen.» galt weiterhin fuer
+# JEDE Nicht-HTTP-Ausnahme — also auch fuer AttributeError, KeyError und
+# TypeError, die alle in DIESEM Server entstehen und bei jedem Versuch gleich
+# ausfallen.
+#
+# Das ist kein erfundener Fall. Der MMS-ID-Befund vom 20.9.2026 war genau
+# dieser: `doc["context"]["mmsid"]` auf einem String ergab einen
+# AttributeError, der jede Suche mit mindestens einem Treffer traf — und beim
+# Aufrufer als voruebergehende Stoerung ankam, die sich gleich legen werde.
+
+
+PROGRAMMFEHLER = [
+    ("AttributeError", AttributeError("'str' object has no attribute 'get'")),
+    ("KeyError", KeyError("mmsid")),
+    ("TypeError", TypeError("string indices must be integers")),
+    ("ValueError", ValueError("boom")),
+]
+
+WIEDERHOLBAR = [
+    ("Zeitueberschreitung", httpx.TimeoutException("zu lange")),
+    ("Verbindungsfehler", httpx.ConnectError("kaputt")),
+]
+
+DETERMINISTISCH_HTTP = [401, 403]
+
+
+@pytest.mark.parametrize("bezeichnung", [n for n, _ in PROGRAMMFEHLER])
+def test_ein_programmfehler_bekommt_keinen_wiederholungsrat(bezeichnung):
+    """Der Befund dieses Durchgangs, je Ausnahmetyp einzeln.
+
+    Parametrisiert und nicht in einer Schleife: Faellt einer, soll die Meldung
+    sagen, welcher. Eine Schleife haette beim ersten aufgehoert.
+    """
+    fehler = dict(PROGRAMMFEHLER)[bezeichnung]
+    meldung = _handle_error(fehler, "Suche")
+
+    assert KEINE_WIEDERHOLUNG in meldung
+    assert WIEDERHOLUNG_MOEGLICH not in meldung
+    assert "später erneut" not in meldung
+
+
+@pytest.mark.parametrize("bezeichnung", [n for n, _ in PROGRAMMFEHLER])
+def test_der_programmfehler_zeigt_auf_die_server_logs(bezeichnung):
+    """Der naechste Schritt, den es hier ueberhaupt gibt.
+
+    Ein Programmfehler hat fuer den Aufrufer keinen Ausweg: Weder eine andere
+    Abfrage noch ein spaeterer Versuch aendert etwas. Handlungsleitend ist
+    allein, wo die Einzelheiten liegen — und die liegen im stderr-Log, nicht in
+    der Antwort (OBS-002).
+    """
+    fehler = dict(PROGRAMMFEHLER)[bezeichnung]
+    meldung = _handle_error(fehler, "Suche")
+
+    assert "Log" in meldung
+    assert "unhandled_exception" in meldung
+    # Und weiterhin ohne Innenleben: Klassenname und Ausnahmetext bleiben drin.
+    assert type(fehler).__name__ not in meldung
+    assert str(fehler).strip("'\"") not in meldung
+
+
+@pytest.mark.parametrize("bezeichnung", [n for n, _ in WIEDERHOLBAR])
+def test_die_transienten_lagen_tragen_den_wiederholungsrat(bezeichnung):
+    """Die andere Haelfte der Trennung.
+
+    Ohne diese Zeilen waere der Test darueber auch an einem `_handle_error`
+    gruen, das den Rat ueberall gestrichen haette — dann unterschiede die
+    Auskunft wieder nichts, bloss in die andere Richtung.
+    """
+    meldung = _handle_error(dict(WIEDERHOLBAR)[bezeichnung], "Suche")
+
+    assert WIEDERHOLUNG_MOEGLICH in meldung
+    assert KEINE_WIEDERHOLUNG not in meldung
+
+
+@pytest.mark.parametrize("status", [429, 500, 502, 503])
+def test_die_wiederholbaren_status_tragen_den_wiederholungsrat(status):
+    """429 und 5xx sind die HTTP-Haelfte davon.
+
+    Getrennt von den Transportfehlern darueber, weil sie einen anderen Weg
+    durch `_ist_wiederholbar` nehmen: dort entscheidet der Statuscode und nicht
+    die Klasse.
+    """
+    meldung = _handle_error(_status(status), "Suche")
+
+    assert WIEDERHOLUNG_MOEGLICH in meldung
+    assert KEINE_WIEDERHOLUNG not in meldung
+
+
+@pytest.mark.parametrize("status", DETERMINISTISCH_HTTP)
+def test_die_deterministischen_status_bekommen_keinen_wiederholungsrat(status):
+    """Die Gegenkontrolle innerhalb von HTTP.
+
+    Ein fehlender Schluessel (401) und eine verweigerte Berechtigung (403)
+    fallen beim naechsten Versuch gleich aus. Ohne diese Zeilen bestuende der
+    Test darueber auch an einem `_handle_error`, das JEDEM HTTP-Fehler den Rat
+    zur Wiederholung gaebe.
+    """
+    meldung = _handle_error(_status(status), "Suche")
+
+    assert KEINE_WIEDERHOLUNG in meldung
+    assert WIEDERHOLUNG_MOEGLICH not in meldung
+
+
+def test_der_404_bekommt_in_beiden_lagen_keinen_wiederholungsrat():
+    """Der 404 hat zwei Zweige (is_search), und beide sind deterministisch."""
+    for meldung in (
+        _handle_error(_status(404), "Suche", is_search=True),
+        _handle_error(_status(404), "Abruf", is_search=False),
+    ):
+        assert KEINE_WIEDERHOLUNG in meldung
+        assert WIEDERHOLUNG_MOEGLICH not in meldung
+
+
+def _alle_lagen() -> dict[str, tuple[Exception, bool]]:
+    """Je ein Vertreter pro Rueckgabe von `_handle_error`, mit `is_search`.
+
+    Der 404 steht zweimal drin, weil er zwei Rueckgaben hat: Die Meldung fuer
+    die Suche und die fuer den Einzelabruf sind verschiedene Zweige, und ein
+    Vertreter kann nur einen davon erreichen.
+    """
+    return {
+        "Egress": (EgressPolicyViolation("evil.example.com"), True),
+        "HTTP 401": (_status(401), True),
+        "HTTP 403": (_status(403), True),
+        "HTTP 404 Suche": (_status(404), True),
+        "HTTP 404 Abruf": (_status(404), False),
+        "HTTP 429": (_status(429), True),
+        "HTTP 500": (_status(500), True),
+        "Zeitueberschreitung": (httpx.TimeoutException("zu lange"), True),
+        "Verbindungsfehler": (httpx.ConnectError("kaputt"), True),
+        "Programmfehler": (AttributeError("'str' object has no attribute 'get'"), True),
+    }
+
+
+@pytest.mark.parametrize("lage", sorted(_alle_lagen()))
+def test_jede_meldung_traegt_genau_einen_der_beiden_saetze(lage):
+    """Die Zusicherung ueber alle Zweige, nicht nur ueber die zwei im Befund.
+
+    Ein Zweig ohne Rat laesst die Wiederholungsfrage offen und ueberlaesst sie
+    dem Tonfall der uebrigen Woerter — genau die Steuerung ueber Prosa, die
+    SEC-028 als untauglich benennt. Ein Zweig mit beiden Saetzen sagt sich
+    selbst das Gegenteil.
+
+    Gegen den naechsten Zweig geschrieben, nicht gegen die heutigen: Wer einen
+    hinzufuegt und den Rat vergisst, faellt hier.
+    """
+    fehler, ist_suche = _alle_lagen()[lage]
+    meldung = _handle_error(fehler, "Suche", is_search=ist_suche)
+    gefunden = [s for s in (KEINE_WIEDERHOLUNG, WIEDERHOLUNG_MOEGLICH) if s in meldung]
+
+    assert len(gefunden) == 1, f"{lage}: {len(gefunden)} Wiederholungssaetze in {meldung!r}"
+
+
+def test_die_liste_der_geprueften_lagen_deckt_jeden_zweig():
+    """Der Waechter ueber der handgeschriebenen Liste darueber.
+
+    Dieselbe Luecke wie bei den Leermengen-Tests: Ein neuer Zweig in
+    `_handle_error` bliebe ungeprueft, weil ihn nichts aufruft. Gezaehlt wird
+    am Code, nicht an der Liste — sonst zaehlt die Liste sich selbst.
+
+    Die Zaehlung ist grob: Sie sieht Rueckgaben, nicht Lagen. Genau das ist
+    hier gewollt — sie soll anschlagen, wenn jemand einen Zweig ergaenzt, und
+    dann zum Nachdenken zwingen, statt selbst zu entscheiden.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    baum = ast.parse(textwrap.dedent(inspect.getsource(_handle_error)))
+    zweige = sum(isinstance(k, ast.Return) for k in ast.walk(baum))
+
+    assert zweige == len(_alle_lagen()), (
+        f"`_handle_error` hat {zweige} Rueckgaben, geprueft werden "
+        f"{len(_alle_lagen())} Lagen. Ein Zweig ist dazugekommen oder "
+        "weggefallen — die Liste in `_alle_lagen()` gehoert nachgezogen."
+    )
+
+
+# ══ Das Feld schlaegt den Typrueckfall ════════════════════════════════════
+
+
+def test_ein_gesetztes_feld_schlaegt_den_typrueckfall():
+    """Die Rangfolge in `_ist_wiederholbar`, an beiden Richtungen gemessen.
+
+    Der Typrueckfall ist eine Notloesung fuer fremde Klassen, die kein
+    `retryable` fuehren — er darf eine gesetzte Marke nicht ueberstimmen.
+    Ohne diese Zeilen bliebe die Rangfolge unbelegt: Ein `_ist_wiederholbar`,
+    das den Typ ZUERST prueft, waere an jedem anderen Test dieser Datei gruen.
+    """
+
+    class _EndgueltigerVerbindungsfehler(httpx.ConnectError):
+        retryable = False
+
+    class _VoruebergehenderProgrammfehler(RuntimeError):
+        retryable = True
+
+    # Typ sagt «wiederholbar», Feld sagt Nein -- das Feld gewinnt.
+    assert KEINE_WIEDERHOLUNG in _handle_error(_EndgueltigerVerbindungsfehler("x"), "Suche")
+    # Typ sagt «nicht wiederholbar», Feld sagt Ja -- das Feld gewinnt.
+    assert WIEDERHOLUNG_MOEGLICH in _handle_error(_VoruebergehenderProgrammfehler("x"), "Suche")
+
+
+def test_ein_feld_auf_false_ist_nicht_dasselbe_wie_kein_feld():
+    """Die Falle in `getattr(e, "retryable", False)`.
+
+    Die erste Fassung las das Feld mit Vorgabe `False`. Damit war «Feld nicht
+    gesetzt» von «Feld auf False» nicht zu unterscheiden — und ein
+    `httpx.ConnectError`, der gar kein Feld fuehrt, waere nie wiederholbar
+    geworden. Gemessen wird deshalb an der Unterscheidung selbst.
+    """
+    from eth_library_mcp.formatting import _ist_wiederholbar
+
+    class _OhneFeld(httpx.ConnectError):
+        pass
+
+    class _MitFeldFalse(httpx.ConnectError):
+        retryable = False
+
+    assert _ist_wiederholbar(_OhneFeld("x")) is True
+    assert _ist_wiederholbar(_MitFeldFalse("x")) is False
+
+
+# ══ Am Draht: der Programmfehler erreicht den Aufrufer ════════════════════
+
+
+@pytest.mark.anyio
+async def test_ein_programmfehler_kommt_mit_iserror_und_ohne_rat_an(monkeypatch):
+    """Beide Zusicherungen am echten Stack, am realen Fall.
+
+    Der MMS-ID-Befund lief genau so: Ein AttributeError im Formatierer, auf
+    einer Antwort MIT Treffern. Gemockt wird deshalb der Formatierer und nicht
+    die Quelle — die Quelle hat sich korrekt verhalten, der Server nicht.
+
+    Gepatcht wird der Alias in `server`, nicht die Funktion in `formatting`:
+    `server` hat sie beim Import in den eigenen Namensraum geholt, und ein
+    Patch am Ursprungsmodul ginge an der aufrufenden Stelle vorbei.
+    """
+    from eth_library_mcp import server
+
+    def _kaputt(doc):
+        raise AttributeError("'str' object has no attribute 'get'")
+
+    monkeypatch.setattr(server, "_format_resource_summary", _kaputt)
+    resultat = await _am_draht(httpx.Response(200, json=_treffer()))
+    meldung = resultat["content"][0]["text"]
+
+    assert resultat["isError"] is True
+    assert KEINE_WIEDERHOLUNG in meldung
+    assert WIEDERHOLUNG_MOEGLICH not in meldung
+    assert "später erneut" not in meldung
+    # OBS-002 am Draht: der Klassenname bleibt im Log, nicht in der Antwort.
+    assert "AttributeError" not in meldung
