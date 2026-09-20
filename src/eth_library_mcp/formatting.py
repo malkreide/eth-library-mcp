@@ -39,6 +39,25 @@ def _add_field(lines: list[str], label: str, value: str) -> None:
         lines.append(f"**{label}:** {value}")
 
 
+def _mmsid(doc: dict[str, Any]) -> str:
+    """Alma-MMS-ID eines Discovery-Eintrags.
+
+    Die Discovery API liefert `context` als String (`"L"` fuer den lokalen
+    Index), nicht als Objekt mit `mmsid`. Die ID steht in
+    `pnx.display.mms[0]`; als Rueckfall dient `pnx.control.sourcerecordid[0]`.
+    Ein `context`-Objekt mit `mmsid` wird weiterhin gelesen, falls eine
+    aeltere Antwortform auftaucht.
+    """
+    context = doc.get("context")
+    if isinstance(context, dict) and context.get("mmsid"):
+        return str(context["mmsid"])
+    pnx = doc.get("pnx", {})
+    mms = _first(pnx.get("display", {}).get("mms", []))
+    if mms:
+        return mms
+    return _first(pnx.get("control", {}).get("sourcerecordid", []))
+
+
 def _format_resource_summary(doc: dict[str, Any]) -> str:
     """Formatiert einen einzelnen Discovery-Eintrag als kompakte Markdown-Zeile."""
     pnx = doc.get("pnx", {})
@@ -49,7 +68,7 @@ def _format_resource_summary(doc: dict[str, Any]) -> str:
     creator = _first(display.get("creator", []))
     date = _first(display.get("creationdate", []))
     rtype = _first(display.get("type", []))
-    mmsid = doc.get("context", {}).get("mmsid", "")
+    mmsid = _mmsid(doc)
     doi = _first(addata.get("doi", []))
 
     parts = [f"**{title or 'Kein Titel'}**"]
@@ -90,7 +109,7 @@ def _format_resource_detail(doc: dict[str, Any]) -> str:
     _add_field(lines, "ISSN", _first(addata.get("issn", [])))
     _add_field(lines, "ISBN", _first(addata.get("isbn", [])))
     _add_field(lines, "DOI", _first(addata.get("doi", [])))
-    _add_field(lines, "MMS-ID", doc.get("context", {}).get("mmsid", ""))
+    _add_field(lines, "MMS-ID", _mmsid(doc))
 
     subjects = display.get("subject", [])
     if subjects:
