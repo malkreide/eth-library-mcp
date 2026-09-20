@@ -54,6 +54,7 @@ import logging
 import os
 import re
 import sys
+import traceback
 from typing import Any
 
 import structlog
@@ -112,8 +113,44 @@ def _redigiere_wert(wert: Any) -> Any:
     return redigiert if redigiert != text else wert
 
 
+# Felder, die `redigiere_datensatz` nicht ueber ihre Textform anfassen darf.
+# `exc_info` ist ein Tripel `(Typ, Wert, Traceback)`; durch `str()` gedreht und
+# als Zeichenkette zurueckgeschrieben waere es kaputt, und der Formatter kaeme
+# nicht mehr an den Traceback. Es wird stattdessen ueber `exc_text` behandelt.
+# `msg` und `args` haben ihre eigene, typbewusste Behandlung weiter oben.
+_EIGENE_BEHANDLUNG = frozenset({"msg", "args", "exc_info", "exc_text"})
+
+
 def redigiere_datensatz(record: logging.LogRecord) -> logging.LogRecord:
-    """Redigiert Nachricht und Argumente eines stdlib-Datensatzes, an Ort und Stelle."""
+    """Redigiert einen stdlib-Datensatz vollstaendig, an Ort und Stelle.
+
+    ## Die drei Wege, auf denen ein Geheimnis in eine Logzeile kommt
+
+    **1. Nachricht und Argumente.** Der gemessene httpx-Fall: die URL steht als
+    `httpx.URL`-Objekt in `record.args`.
+
+    **2. Die Ausnahme.** `logging.Formatter.format()` haengt den Traceback
+    **nach** der Formatierung der Nachricht an, aus `record.exc_info`. Eine
+    Fassung, die nur `msg` und `args` anfasst, laesst ihn unberuehrt -- und
+    httpx-Ausnahmen fuehren die vollstaendige URL in ihrem Text. Gemessen am
+    20.9.2026:
+
+        ValueError: request failed for url ...&apikey=sk-LECK-TEST-12345
+
+    Behoben wird das nicht durch Aendern der Ausnahme -- die gehoert dem
+    Aufrufer und wird anderswo weiterverwendet --, sondern ueber `exc_text`:
+    Der Formatter benutzt dieses Feld, wenn es gesetzt ist, und ruft
+    `formatException` dann gar nicht erst auf. Wir formatieren also selbst,
+    redigieren das Ergebnis und legen es dort ab.
+
+    **3. `extra`.** `Logger.makeRecord` mischt die `extra`-Felder erst **nach**
+    der Datensatz-Fabrik in `record.__dict__`. Ein strukturierter Handler, der
+    das Dictionary serialisiert, gibt sie unredigiert aus. Gemessen am selben
+    Tag: `extra_url=https://...&apikey=sk-LECK-TEST-12345`.
+
+    Die Wege 2 und 3 hat ein Codex-Review auf PR #63 gefunden, nachdem Weg 1
+    behoben war. Beide sind danach nachgemessen worden, nicht uebernommen.
+    """
     if isinstance(record.msg, str):
         record.msg = redigiere_geheimnisse(record.msg)
 
@@ -123,7 +160,47 @@ def redigiere_datensatz(record: logging.LogRecord) -> logging.LogRecord:
         else:
             record.args = tuple(_redigiere_wert(v) for v in record.args)
 
+    if record.exc_info and not record.exc_text:
+        roh = "".join(traceback.format_exception(*record.exc_info))
+        record.exc_text = redigiere_geheimnisse(roh.rstrip("\n"))
+    elif record.exc_text:
+        record.exc_text = redigiere_geheimnisse(record.exc_text)
+
+    # Alles Uebrige aus `record.__dict__` -- das sind genau die `extra`-Felder
+    # plus die Standardfelder, bei denen die Redaktion folgenlos durchlaeuft.
+    for schluessel, wert in record.__dict__.items():
+        if schluessel not in _EIGENE_BEHANDLUNG:
+            record.__dict__[schluessel] = _redigiere_wert(wert)
+
     return record
+
+
+def _installiere_makerecord_haken() -> None:
+    """Redigiert nach dem Einmischen von `extra`.
+
+    Die Datensatz-Fabrik allein genuegt dafuer nicht, und das ist keine
+    Nachlaessigkeit der Fabrik, sondern die Reihenfolge in CPython:
+
+        rv = _logRecordFactory(...)      # hier laeuft unsere Fabrik
+        if extra is not None:
+            for key in extra:
+                rv.__dict__[key] = extra[key]   # erst hier kommt extra dazu
+        return rv
+
+    `Logger.makeRecord` ist die einzige Stelle, an der der Datensatz
+    **vollstaendig** ist und trotzdem noch keinen Handler gesehen hat. Ein
+    Filter am Handler waere wieder von der Handler-Reihenfolge abhaengig --
+    genau das Problem, das die Fabrik geloest hat.
+    """
+    vorhanden = logging.Logger.makeRecord
+    if getattr(vorhanden, "_redigiert", False):
+        return
+
+    def makeRecord(self: logging.Logger, *args: Any, **kwargs: Any) -> logging.LogRecord:
+        return redigiere_datensatz(vorhanden(self, *args, **kwargs))
+
+    makeRecord._redigiert = True  # type: ignore[attr-defined]
+    logging.Logger.makeRecord = makeRecord  # type: ignore[method-assign]
 
 
 def _installiere_datensatz_fabrik() -> None:
@@ -179,6 +256,7 @@ def configure_logging(level: str = "INFO") -> None:
     )
 
     _installiere_datensatz_fabrik()
+    _installiere_makerecord_haken()
 
     structlog.configure(
         processors=[

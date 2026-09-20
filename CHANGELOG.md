@@ -35,10 +35,34 @@ Katalog (`audits/2026-09-19T171257-Z-eth-library-mcp/`).
   CI-Ausgabe oder einem Terminal-Mitschnitt.
 
 - **Redigiert wird jetzt bei der Erzeugung jedes Logdatensatzes**
-  (`logging.setLogRecordFactory`) und zusaetzlich als structlog-Prozessor. Zwei
-  Stellen, weil die beiden Logwege dieses Servers sich keinen Ausgang teilen:
-  structlog schreibt direkt nach stderr und kommt an den stdlib-Handlern gar
-  nicht vorbei.
+  (`logging.setLogRecordFactory`), beim Einmischen von `extra`
+  (`Logger.makeRecord`) und zusaetzlich als structlog-Prozessor. Drei Stellen,
+  weil die drei Wege sich keinen gemeinsamen Punkt teilen, an dem alles
+  vorbeikaeme:
+
+  | Weg | Wo das Geheimnis steht | Wo redigiert wird |
+  |---|---|---|
+  | httpx-Anfragezeile | `record.args` (als `httpx.URL`-Objekt) | Datensatz-Fabrik |
+  | Ausnahme-Traceback | `record.exc_info`, vom Formatter **nach** der Nachricht angehaengt | `record.exc_text` in der Fabrik |
+  | `extra`-Felder | `record.__dict__`, **nach** der Fabrik eingemischt | `Logger.makeRecord` |
+  | eigene Logzeilen | structlog-Ereignis | structlog-Prozessor |
+
+  Die beiden mittleren Wege hat ein Codex-Review auf PR #63 gefunden, nachdem
+  der erste behoben war. Beide sind danach nachgemessen worden statt
+  uebernommen — vor dem Fix gab der Traceback
+  `ValueError: request failed for url ...&apikey=sk-LECK-TEST-12345` aus und
+  das `extra`-Feld dieselbe URL.
+
+  **Der Traceback wird nicht durch Aendern der Ausnahme entschaerft.** Die
+  gehoert dem Aufrufer und wird anderswo weiterverwendet. Stattdessen
+  formatiert die Fabrik den Traceback selbst, redigiert ihn und legt ihn in
+  `record.exc_text` ab — ein Feld, das der Formatter benutzt, wenn es gesetzt
+  ist, statt `formatException` aufzurufen.
+
+  **`exc_info` bleibt dabei ausdruecklich unberuehrt.** Wer `record.__dict__`
+  stumpf ueber `str()` redigiert, macht aus dem `(Typ, Wert, Traceback)`-Tripel
+  eine Zeichenkette. Nichts schlaegt fehl — aber jeder Handler, der danach
+  `formatException` aufruft, bekommt Schrott. Ein Test haelt das Tripel fest.
 
   Die erste Fassung war ein Filter am Handler. Sie funktionierte — und ein Test
   zeigte, dass sie von der **Handler-Reihenfolge** abhing: Ein zweiter Handler
