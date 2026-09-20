@@ -64,6 +64,56 @@ ruff format .
 
 ---
 
+---
+
+## The counter-check: proving a test can fail
+
+A test that stays green when you delete the code it covers is not a test. On
+2026-09-19 an audit measured this repo against that standard and found **four
+of six** assurances undefended: the egress allow-list, the tool annotations,
+the generic error masking and the per-response source attribution could all be
+removed with the whole suite still green.
+
+They were not forgotten. They were in the code, described in the docs, and
+held down by nothing.
+
+So before you claim a new assurance is covered, break it and watch the right
+test fall:
+
+```bash
+python scripts/gegenprobe.py            # every documented mutation
+python scripts/gegenprobe.py --nur M1   # just one
+python scripts/gegenprobe.py --json     # machine-readable
+```
+
+The script copies the repo to a temporary directory, applies one mutation at a
+time and reports which tests go red. Exit 0 only if **every** mutation kills at
+least one test.
+
+Three things it does that a hand-run does not, and each of them cost a
+measurement to learn:
+
+- **It subtracts the noise floor.** The working copy carries no `.git`, so the
+  13 tests in `tests/test_session_start_hook.py` fail there no matter what. The
+  first run of this script reported "OK" for every mutation on the strength of
+  that scenery alone. The baseline is now measured in an unmutated copy and
+  subtracted.
+- **It carries positive controls.** Two entries (`P1`, `P2`) are mutations
+  known to fire. If *they* stay silent, the run measured nothing — wrong path,
+  incomplete copy, suite never started. Without them, "everything survived"
+  and "the script is broken" look identical.
+- **It fails loudly on a stale pattern.** If a mutation's search string is no
+  longer in the file, that is reported rather than silently skipped — the
+  assurance was either rewritten or removed, and both deserve a look.
+
+**When you add an assurance, add its mutation** to the `MUTATIONEN` list in the
+script. An assurance that is not in that list is not covered by this check, and
+the check will not tell you so.
+
+Running it in CI is deliberately *not* set up: it runs the suite seven times
+and would add minutes to every pull request. Run it when you touch one of the
+listed assurances, and record the result in your PR.
+
 ## Pull Request Guidelines
 
 1. **Fork** the repository and create a feature branch from `main`:

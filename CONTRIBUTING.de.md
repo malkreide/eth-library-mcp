@@ -64,6 +64,58 @@ ruff format .
 
 ---
 
+---
+
+## Die Gegenprobe: nachweisen, dass ein Test fallen kann
+
+Ein Test, der grün bleibt, wenn man den Code entfernt, den er abdeckt, ist
+kein Test. Am 19.9.2026 hat ein Audit dieses Repo an diesem Massstab gemessen
+und **vier von sechs** Zusicherungen als ungedeckt gefunden: Egress-Allow-List,
+Werkzeug-Annotationen, generische Fehlermaskierung und die Quellenangabe je
+Antwort liessen sich alle entfernen, ohne dass die Suite rot wurde.
+
+Vergessen waren sie nicht. Sie standen im Code, waren in der Doku beschrieben
+— und von nichts festgehalten.
+
+Bevor Sie eine neue Zusicherung für gedeckt erklären, machen Sie sie also
+kaputt und sehen zu, dass der richtige Test fällt:
+
+```bash
+python scripts/gegenprobe.py            # alle dokumentierten Mutationen
+python scripts/gegenprobe.py --nur M1   # nur eine
+python scripts/gegenprobe.py --json     # maschinenlesbar
+```
+
+Das Skript kopiert das Repo in ein temporäres Verzeichnis, wendet eine
+Mutation nach der anderen an und meldet, welche Tests rot werden. Exit 0 nur,
+wenn **jede** Mutation mindestens einen Test umbringt.
+
+Drei Dinge tut es, die eine Handarbeit nicht tut — und jedes davon hat eine
+Messung gekostet:
+
+- **Es zieht die Grundlast ab.** Die Arbeitskopie trägt kein `.git`, also
+  fallen die 13 Tests in `tests/test_session_start_hook.py` dort in jedem Lauf.
+  Der erste Lauf dieses Skripts meldete für jede Mutation «OK» — allein
+  aufgrund dieser Kulisse. Die Grundlast wird jetzt in einer unmutierten Kopie
+  gemessen und abgezogen.
+- **Es führt Positivkontrollen mit.** Zwei Einträge (`P1`, `P2`) sind
+  Mutationen, von denen bekannt ist, dass sie anschlagen. Bleiben *sie* stumm,
+  hat der Lauf nichts gemessen — falscher Pfad, unvollständige Kopie, Suite nie
+  gestartet. Ohne sie sehen «alles überlebt» und «das Skript ist kaputt» gleich
+  aus.
+- **Es scheitert laut an einem veralteten Muster.** Steht die Suchzeichenkette
+  einer Mutation nicht mehr in der Datei, wird das gemeldet statt still
+  übersprungen: Die Zusicherung wurde entweder umgeschrieben oder entfernt, und
+  beides gehört angesehen.
+
+**Wer eine Zusicherung hinzufügt, trägt ihre Mutation nach** — in die Liste
+`MUTATIONEN` im Skript. Eine Zusicherung, die dort nicht steht, ist von dieser
+Prüfung nicht erfasst, und die Prüfung sagt es Ihnen nicht.
+
+In der CI läuft das Skript bewusst **nicht**: Es fährt die Suite siebenmal und
+verlängerte jeden Pull Request um Minuten. Fahren Sie es, wenn Sie eine der
+gelisteten Zusicherungen anfassen, und halten Sie das Ergebnis im PR fest.
+
 ## Richtlinien für Pull Requests
 
 1. **Forken** Sie das Repository und erstellen Sie einen Feature-Branch von `main`:
