@@ -32,8 +32,30 @@ updates:
         patterns: ["*"]
 
   # Basis-Image im Dockerfile
+  #
+  # Der `ignore`-Block haelt die Python-Minor-Version fest, und zwar
+  # absichtlich gegen diesen Bot: Am 28.8.2026 hob er das Image von
+  # 3.13-slim auf 3.14-slim (Commit 2719b9d). Die CI-Matrix faehrt 3.11,
+  # 3.12 und 3.13 -- der ausgelieferte Container lief damit auf einer
+  # Version, die kein Gate prueft. Ohne diesen Block kaeme derselbe PR im
+  # naechsten Monat wieder, und der Pin im Dockerfile waere eine Zeile, die
+  # gegen einen schnelleren Gegner gepflegt wird.
+  #
+  # Wann er faellt: wenn die Matrix in ci.yml 3.14 mitfaehrt. Dann gehoeren
+  # beide Aenderungen in denselben PR -- Matrix, Classifier und Image --,
+  # nicht nacheinander.
+  #
+  # Was er NICHT einfriert: Sicherheitsaktualisierungen. `3.13-slim` ist ein
+  # bewegliches Tag, Docker Hub baut es neu, und der Build zieht die
+  # aktuelle Fassung. Gepinnt ist die Minor-Version von Python, nicht der
+  # Stand des Basis-Systems.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"

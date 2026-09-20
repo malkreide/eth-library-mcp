@@ -146,7 +146,13 @@ async def test_der_stempel_steht_auf_einer_gewoehnlichen_methode() -> None:
     """
     info = await _modern_server_info("tools/list")
 
-    assert info.get("name") == "eth_library_mcp"
+    # Verglichen wird gegen den Distributionsnamen, nicht gegen ein Literal.
+    # Bis zum 20.9.2026 stand hier `eth_library_mcp` -- der Modulpfad, nicht
+    # der Name, unter dem dieser Server zu beziehen ist. Ein Literal haette
+    # die Abweichung mitgepflegt statt sie zu melden; genau diese Klasse
+    # Fehler hat `test_import_version` in diesem Repo schon einmal
+    # festgeschrieben.
+    assert info.get("name") == _pyproject()["name"]
 
 
 async def test_auch_die_auskunftsmethode_traegt_die_identitaet() -> None:
@@ -292,3 +298,27 @@ def test_die_identitaet_deckt_sich_mit_dem_registry_manifest() -> None:
     manifest = json.loads((REPO / "server.json").read_text(encoding="utf-8"))
 
     assert manifest["websiteUrl"] == HOMEPAGE_URL
+
+
+def test_der_bezeichner_ist_ueberall_derselbe() -> None:
+    """Vier Stellen nennen den Namen dieses Servers. Sie muessen sich decken.
+
+    Der Stempel am Draht steht bewusst NICHT in dieser Liste: Ihn misst
+    `test_der_stempel_steht_auf_einer_gewoehnlichen_methode` gegen
+    `pyproject.toml`. Hier stehen die drei Stellen, die kein Draht beruehrt --
+    ein Vergleich unter Dateien, der ohne laufenden Server auskommt.
+
+    Der Registry-Name traegt eine Namensraum-Vorsilbe (`io.github.<owner>/`).
+    Verglichen wird deshalb sein Suffix; die Vorsilbe gehoert der Registry und
+    nicht diesem Server.
+    """
+    name = _pyproject()["name"]
+    manifest = json.loads((REPO / "server.json").read_text(encoding="utf-8"))
+
+    assert manifest["packages"][0]["identifier"] == name
+    assert manifest["name"].split("/")[-1] == name
+    # Positivkontrolle: Der Registry-Name traegt ueberhaupt eine Vorsilbe.
+    # Ohne diese Zeile bestuende die Zusicherung darueber auch an einem
+    # `name`, der gar keinen Schraegstrich enthaelt — dann verglichen wir
+    # den ganzen String mit sich selbst.
+    assert "/" in manifest["name"]

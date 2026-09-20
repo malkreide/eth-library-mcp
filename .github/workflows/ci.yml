@@ -46,3 +46,26 @@ jobs:
 
       - name: Versions-Sync (pyproject ↔ server.json / README / src)
         run: python scripts/check_version_sync.py
+
+  # Eigener Job, nicht ein weiterer Schritt oben: Der Build haengt an keiner
+  # Python-Version der Matrix -- das Dockerfile bringt seine eigene mit. In der
+  # Matrix liefe derselbe Build dreimal identisch.
+  #
+  # Warum es ihn gibt: Das Dockerfile war bis zum 19.9.2026 nicht baubar. Es
+  # kopierte `pyproject.toml README.md` ohne `LICENSE`, waehrend `pyproject.toml`
+  # die Datei unter `license = { file = "LICENSE" }` fuehrt -- hatchling bricht
+  # dann ab. Behoben wurde das von Hand (Commit f4ab5b5); gemerkt hat es
+  # niemand, weil kein Gate den Container je gebaut hat. Die CI war die ganze
+  # Zeit gruen.
+  #
+  # `docker build .` und sonst nichts: kein Push, keine Registry, keine
+  # Zugangsdaten. Gebaut wird gegen die Regeln in `.dockerignore` -- faellt dort
+  # eine Datei heraus, die das Dockerfile kopiert, faellt dieser Job.
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Container bauen (ohne Push)
+        run: docker build .

@@ -14,10 +14,11 @@ beschrieben -- und von nichts festgehalten.
 Eine Handarbeit, die vier von sechs Luecken uebersieht, ist keine Pruefung.
 Deshalb steht die Liste jetzt hier, ausgeschrieben und ausfuehrbar.
 
-Seit FID-003 und SEC-028 sind es sechzehn Eintraege: die sechs von OPS-010,
-die sieben, die mit dem Fehlerkanal und der Egress-Taxonomie dazukamen, und
-drei aus dem zweiten SEC-028-Durchgang vom 20.9.2026 -- dem, der den
-Wiederholungsrat aus dem generischen Schlusszweig geraeumt hat.
+Inzwischen sind es achtzehn Eintraege: die sechs von OPS-010, die sieben, die
+mit dem Fehlerkanal und der Egress-Taxonomie dazukamen, drei aus dem zweiten
+SEC-028-Durchgang vom 20.9.2026 -- dem, der den Wiederholungsrat aus dem
+generischen Schlusszweig geraeumt hat -- und zwei aus demselben Tag fuer die
+Server-Identitaet und die Werkzeugbeschreibungen.
 Die Liste waechst mit jedem Befund, den jemand behebt -- das ist ihr Zweck.
 
 ## Was es nicht ist
@@ -283,6 +284,32 @@ MUTATIONEN: list[Mutation] = [
             "Der Rueckfall am Typ ist eine Notloesung fuer fremde Klassen. "
             "Ueberstimmt er eine gesetzte Marke, entscheidet wieder der "
             "Typname -- der Zustand, gegen den SEC-028 geschrieben ist."
+        ),
+    ),
+    Mutation(
+        kennung="M15",
+        zusicherung="serverInfo.name ist der Distributionsname",
+        datei="src/eth_library_mcp/server.py",
+        alt='    "eth-library-mcp",',
+        neu='    "eth_library_mcp",',
+        erwartet=("test_der_stempel_steht_auf_einer_gewoehnlichen_methode",),
+        bemerkung=(
+            "Der Modulpfad an der Stelle des Bezeichners -- der Stand bis zum "
+            "20.9.2026. Der Server stempelte damit in jede Antwort einen "
+            "Namen, unter dem er nirgends zu beziehen ist."
+        ),
+    ),
+    Mutation(
+        kennung="M16",
+        zusicherung="Keine Werkzeugbeschreibung beginnt mit einer Leerzeile",
+        datei="src/eth_library_mcp/server.py",
+        alt='    """Durchsucht den Katalog der ETH-Bibliothek',
+        neu='    """\n    Durchsucht den Katalog der ETH-Bibliothek',
+        erwartet=("test_jede_werkzeugbeschreibung_traegt_die_kurzbeschreibung_zuerst",),
+        bemerkung=(
+            "Das SDK reicht den Docstring roh durch. Ein fuehrender Umbruch "
+            "erzeugt eine Beschreibung mit leerer erster Zeile -- und ein "
+            "Client, der nur diese zeigt, zeigt nichts."
         ),
     ),
     Mutation(

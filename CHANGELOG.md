@@ -7,6 +7,174 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Behoben — der Wiederholungsrat galt auch für Programmfehler (SEC-028, zweiter Durchgang)
+
+Der erste Durchgang hat den Egress-Zweig aus dem generischen Schluss
+herausgelöst. Was dort liegenblieb, war derselbe Fehler eine Ebene weiter:
+«Unbekannter Fehler. Bitte später erneut versuchen.» galt weiterhin für **jede**
+Nicht-HTTP-Ausnahme — also auch für `AttributeError`, `KeyError` und
+`TypeError`, die alle in diesem Server entstehen und bei jedem Versuch gleich
+ausfallen.
+
+Kein erfundener Fall. Der MMS-ID-Befund im Eintrag weiter unten war genau
+dieser: `doc["context"]["mmsid"]` auf einem String ergab einen `AttributeError`,
+der jede Suche mit mindestens einem Treffer traf — und beim Aufrufer als
+vorübergehende Störung ankam, die sich gleich legen werde. Zwei Befunde,
+dieselbe Zeile: der eine erzeugte den Fehler, der andere erzählte ihn falsch.
+
+Die Entscheidung liegt jetzt an genau einer Stelle, `_ist_wiederholbar`:
+
+| Eingang | Entscheidung |
+|---|---|
+| Feld `retryable` gesetzt | gewinnt, in beide Richtungen |
+| `TimeoutException`, `ConnectError` | wiederholbar |
+| HTTP 429, HTTP 5xx | wiederholbar |
+| alles übrige, Programmfehler zuerst | nicht wiederholbar |
+
+- **Das Feld behält den Vorrang.** Die Zusicherung aus dem ersten Durchgang —
+  gelesen wird `retryable`, nicht der Typname — ist unangetastet. Der
+  Typrückfall steht *darunter* und greift nur für fremde Klassen, die kein
+  solches Feld führen. Ihnen eines anzuflanschen hiesse, httpx zu bemalen.
+  Gemessen in beide Richtungen: Ein `ConnectError` mit `retryable = False`
+  bekommt keinen Rat, ein `RuntimeError` mit `retryable = True` bekommt einen.
+- **`getattr(e, "retryable", None)` statt `False`.** Mit `False` als Vorgabe
+  wäre «Feld nicht gesetzt» von «Feld auf `False`» nicht zu unterscheiden
+  gewesen — und ein `ConnectError`, der gar kein Feld führt, wäre nie
+  wiederholbar geworden. Die erste Fassung hatte genau das.
+- **Jeder der zehn Zweige schliesst mit genau einem der beiden Sätze.** Ein
+  Zweig ohne Rat überliesse die Wiederholungsfrage dem Tonfall der übrigen
+  Wörter — die Steuerung über Prosa, die SEC-028 als untauglich benennt. Ein
+  Wächter zählt die Rückgaben von `_handle_error` per AST gegen die Liste der
+  geprüften Lagen und schlägt an, wenn jemand einen Zweig ergänzt.
+- **Der neue Schlusszweig nennt den Ort der Einzelheiten**, statt sie
+  mitzuliefern: stderr-Log, Ereignis `unhandled_exception`. OBS-002 bleibt
+  unberührt — Klassenname und `str(e)` gehen weiter nur ins Log, am Draht
+  nachgemessen.
+
+**Gegenprobe: 18 von 18 Mutationen schlagen an** (vorher 13 von 13), beide
+Positivkontrollen inbegriffen. Fünf neue, drei davon aus diesem Befund:
+
+| Mutation | Tests rot |
+|---|---|
+| M12 Programmfehler wieder wiederholbar | 3 |
+| M13 Typrückfall abgeschaltet | 2 |
+| M14 Feldvorrang aufgehoben | 3 |
+| M15 Modulpfad als `serverInfo.name` | 1 |
+| M16 führender Umbruch im Docstring | 1 |
+
+M3, M7, M11 und P2 zitierten Zeilen, die dieser Stand ändert; sie sind
+nachgezogen. Dass das Skript an einem veralteten Muster **laut** scheitert
+statt still zu überspringen, hat sich hier zum ersten Mal ausgezahlt.
+
+**226 Tests** (vorher 192).
+
+### Behoben — der Server stempelte einen Namen, unter dem es ihn nicht gibt
+
+`serverInfo.name` lautete `eth_library_mcp` — der **Modulpfad**. Die
+Distribution heisst `eth-library-mcp`, `server.json` führt sie unter
+`packages[0].identifier` genauso, und der Registry-Name lautet
+`io.github.malkreide/eth-library-mcp`. Der einzige Ort mit dem Unterstrich war
+der Name, den der Server seit der Spec 2026-07-28 in **jede** Antwort stempelt.
+
+Die Zusicherung vergleicht jetzt, statt zu pinnen: `test_server_identity.py`
+prüft `serverInfo.name` gegen `project.name` aus `pyproject.toml`. Ein Literal
+hätte die Abweichung mitgepflegt, statt sie zu melden — dieselbe Klasse, die
+`test_import_version` in diesem Repo schon einmal festgeschrieben hat. Dazu ein
+zweiter Test, der die drei Datei-Stellen untereinander abgleicht (Suffix des
+Registry-Namens, Paket-Identifier, Distributionsname), mit Positivkontrolle
+darauf, dass der Registry-Name überhaupt eine Namensraum-Vorsilbe trägt.
+Neutralisiert wird sie von `M15` der Gegenprobe.
+
+Nicht betroffen: `python -m eth_library_mcp.server` und `src/eth_library_mcp/`.
+Das sind Modulpfade und heissen zu Recht weiter so. Der Schlüssel `eth-library`
+in `claude_desktop_config.json` ist frei wählbar und unberührt.
+
+### Ergänzt — die CI baut den Container (OPS)
+
+`ci.yml` hat einen zweiten Job, `docker`, mit einem Schritt: `docker build .`.
+Kein Push, keine Registry, keine Zugangsdaten.
+
+Der Grund ist eine Lücke der Art, die dieses Repo sonst beschreibt: **Das
+Dockerfile war über Monate nicht baubar.** Es kopierte `pyproject.toml
+README.md` ohne `LICENSE`, während `pyproject.toml` die Datei unter
+`license = { file = "LICENSE" }` führt; hatchling bricht dann ab mit
+
+```
+OSError: License file does not exist: LICENSE
+```
+
+Die CI war die ganze Zeit grün, weil sie den Container nie gebaut hat. Behoben
+wurde es von Hand (`f4ab5b5`); gemessen hat es nichts.
+
+Der Job steht ausserhalb der Matrix: Das Dockerfile bringt seine eigene
+Python-Version mit, in der Matrix liefe derselbe Build dreimal identisch.
+
+**Das Basis-Image ist auf `python:3.13-slim` zurückgepinnt**, und der Pin hat
+einen Gegner. `.github/dependabot.yml` führt das `docker`-Ökosystem und hob das
+Image am 28.8.2026 auf `3.14-slim` (`2719b9d`), während die CI-Matrix auf 3.11 /
+3.12 / 3.13 stehenblieb — der ausgelieferte Container lief drei Wochen lang auf
+einer Version, die **kein Gate prüft**, und die Classifier in `pyproject.toml`
+nennen sie bis heute nicht.
+
+Eine Zeile im Dockerfile allein hält das nicht: Derselbe PR käme im nächsten
+Monat wieder. Der `docker`-Block trägt deshalb einen `ignore`-Eintrag für Major
+und Minor von `python`, samt der Bedingung, wann er fällt — wenn die Matrix 3.14
+mitfährt, und dann gehören Matrix, Classifier und Image in denselben PR.
+
+Was der `ignore` **nicht** einfriert: Sicherheitsaktualisierungen. `3.13-slim`
+ist ein bewegliches Tag; Docker Hub baut es neu, ein Build zieht die aktuelle
+Fassung. Gepinnt ist die Minor-Version von Python, nicht der Stand des
+Basis-Systems.
+
+**Was hier nicht behauptet wird.** Der Build ist in der Entwicklungsumgebung
+dieses Stands nicht vollständig gefahren worden — dort ist kein Docker-Daemon
+erreichbar. Nachgestellt ist der Teil, an dem der Befund hing: Mit genau den
+Dateien, die das Dockerfile kopiert, läuft `python -m build --wheel` durch, und
+die Gegenprobe ohne `LICENSE` scheitert mit der Zeile oben. Die Schritte, die
+einen Daemon brauchen — Basis-Image ziehen, Wheel installieren, `useradd` —
+sind **ungeprüft**, bis dieser Job das erste Mal in der CI läuft.
+
+### Behoben — eine Werkzeugbeschreibung begann mit einer Leerzeile (OBS)
+
+Der Docstring von `eth_search_resources` fing nach den Anführungszeichen mit
+einem Umbruch an. Das SDK reicht den Docstring roh durch — es dedentet nicht und
+streift keinen führenden Umbruch ab —, also begann die Beschreibung am Draht mit
+einer Leerzeile. Ein Client, der nur die erste Zeile anzeigt, zeigte nichts.
+
+Am Draht gemessen über `tools/list`: eines von sechs Werkzeugen war so gesetzt,
+die fünf anderen nicht. Im Quelltext sieht der Unterschied nach Formatsache aus.
+Zwei neue Zusicherungen halten ihn, beide über `tools/list` und nicht über den
+Quelltext: keine Beschreibung mit leerer erster Zeile — und, als
+Positivkontrolle, keine Beschreibung, die ganz fehlt. Ohne die zweite wäre ein
+Werkzeug ganz ohne Docstring an der ersten vorbeigelaufen, weil eine leere
+Zeichenkette keine leere erste Zeile hat. Neutralisiert wird die erste von
+`M16` der Gegenprobe.
+
+### Nicht behoben, und warum — die Discovery-Fixture
+
+Zum MMS-ID-Eintrag unten gehört eine offene Flanke: Es gibt weiterhin
+**keine aufgezeichnete Discovery-Antwort**. Der MMS-ID-Pfad ist repariert und
+durch Tests gedeckt, aber die Testdaten dafür sind handgeschrieben — sie
+kodieren die Annahme ihres Autors und können sie nicht widerlegen. Genau daran
+ist der Befund entstanden: Alle Fixtures trugen die Form `context.mmsid`, die
+die Quelle gar nicht liefert.
+
+Die Aufzeichnung braucht einen `ETH_LIBRARY_API_KEY`, und im Lauf vom 20.9.2026
+war keiner verfügbar. Dass das am Schlüssel liegt und nicht an der Quelle, ist
+gemessen und nicht geschlossen — mit Positivkontrolle:
+
+```
+GET /discovery/v1/resources?q=any,contains,Einstein&limit=1  → 401
+GET /discovery/v1/diesen-pfad-gibt-es-nicht                  → 404   (Kontrolle)
+```
+
+Das Gateway routet vor der Schlüsselprüfung: 401 heisst «Route da, Schlüssel
+fehlt», 404 «Route weg». Wer einen Schlüssel hat, setzt ihn und lässt
+`scripts/record_fixtures.py` erneut laufen; `tests/fixtures/PROVENANCE.md` führt
+die Payloads bis dahin ausdrücklich als NICHT AUFGEZEICHNET, statt ihnen ein
+Datum anzuschreiben, das nicht stimmt.
+
+
 ### Behoben — jeder Treffer der Discovery API brach die Formatierung ab
 
 `_format_resource_summary` und `_format_resource_detail` lasen die MMS-ID aus

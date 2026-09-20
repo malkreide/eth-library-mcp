@@ -171,7 +171,13 @@ CACHE_HINTS: dict[CacheableMethod, CacheHint] = {
 SERVER_TITLE = "ETH-Bibliothek Zürich"
 
 mcp = MCPServer(
-    "eth_library_mcp",
+    # Der programmatische Bezeichner, und er heisst wie die Distribution:
+    # `eth-library-mcp` steht so in `pyproject.toml`, in `server.json` als
+    # `packages[0].identifier` und als Suffix des Registry-Namens
+    # `io.github.malkreide/eth-library-mcp`. Bis zum 20.9.2026 stand hier
+    # `eth_library_mcp` -- der Modulpfad. Der Server stempelte damit in jede
+    # Antwort einen Namen, unter dem er nirgends zu beziehen ist.
+    "eth-library-mcp",
     title=SERVER_TITLE,
     version=__version__,
     description=DESCRIPTION,
@@ -288,8 +294,7 @@ async def eth_search_resources(
     params: SearchResourcesInput,
     ctx: Context | None = None,
 ) -> CallToolResult:
-    """
-    Durchsucht den Katalog der ETH-Bibliothek mit über 30 Millionen Ressourcen.
+    """Durchsucht den Katalog der ETH-Bibliothek mit über 30 Millionen Ressourcen.
 
     Nutzt die Discovery API (api.library.ethz.ch/discovery/v1/resources).
     Unterstützt Freitextsuche, Feldsuche, Facetten-Filter und Pagination.
