@@ -9,7 +9,7 @@
 FROM python:3.14-slim AS builder
 
 WORKDIR /build
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md LICENSE ./
 COPY src/ ./src/
 RUN pip install --no-cache-dir --upgrade pip build && \
     python -m build --wheel --outdir /wheels
