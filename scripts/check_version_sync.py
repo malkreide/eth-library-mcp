@@ -99,17 +99,44 @@ def own_ua_versions(line: str, dist: str) -> list[str]:
     return [m.group(2) for m in _UA.finditer(line) if norm(m.group(1)) == norm(dist)]
 
 
+# Eine Versionsangabe in einer Zeichenkette, die der Server ausgibt — also
+# nicht an Python-Syntax gebunden, sondern an das, was ein Leser als Version
+# liest: «Version: 1.2.3», «**Version:** 1.2.3», «version 1.2.3».
+_AUSGEGEBENE_VERSION = re.compile(r"""(?i)\bversion\b[^0-9\n]{0,12}?(\d+\.\d+(?:\.\d+)?)""")
+
+
 def find_hardcoded(dist: str) -> list[tuple[str, int, str]]:
     """Manuell gepflegte Versionen in `src/`.
 
-    Zwei Formen kommen im Portfolio vor: der User-Agent (`<token>/1.2.3`) und
-    die `__version__`-Zuweisung. Die Projekt-URL trägt denselben Namen, aber
-    keine Ziffer danach — deshalb verlangt das Muster eine gepunktete Zahl.
+    Drei Formen kommen im Portfolio vor: der User-Agent (`<token>/1.2.3`), die
+    `__version__`-Zuweisung — und seit dem Audit vom 19.9.2026 eine dritte, die
+    dieses Gate zwei Releases lang nicht gesehen hat. Die Projekt-URL trägt
+    denselben Namen, aber keine Ziffer danach — deshalb verlangt das Muster
+    eine gepunktete Zahl.
+
+    ## Die dritte Form: eine Version im ausgegebenen Text
+
+    `eth_library_info` gab `**Version:** 0.3.0` als Teil seines Rückgabetextes
+    aus, während das Paket bei 0.4.0 stand. Dieses Gate meldete dazu «keine
+    hartkodierte Version in src/» und exitete 0 — die beiden bisherigen Muster
+    suchen eine Zuweisung beziehungsweise einen User-Agent, und die Zahl stand
+    in keinem von beidem. Das Gate war nicht zu schwach eingestellt; es hat an
+    dieser Stelle gar nicht hingesehen.
+
+    Das ist die teuerste Sorte Fehlbefund: Ein grünes Gate beendet die
+    Beschäftigung mit der Frage, und niemand widerspricht ihm je. Genau deshalb
+    zählt eine ausgegebene Version hier als Treffer — sie ist die einzige
+    Versionsangabe dieses Servers, die ein Nutzer zu sehen bekommt.
 
     Der Fallback im `except PackageNotFoundError`-Zweig (`0.0.0+source`) ist
     ausdrücklich **kein** Treffer: er behauptet gerade keine Version. Erkannt
     wird er am lokalen Segment nach `+`, nicht an der Zahl davor — `0.0.0`
     allein sieht wie eine echte Version aus.
+
+    Ebenfalls kein Treffer ist eine *interpolierte* Angabe (`{__version__}`):
+    Dort steht keine Zahl, und genau so soll es aussehen. Das Muster verlangt
+    eine Ziffernfolge, findet die Interpolation also gar nicht erst — die
+    Behebung macht das Gate still, statt es zu umgehen.
     """
     hits: list[tuple[str, int, str]] = []
     if not SRC.is_dir():
@@ -123,6 +150,8 @@ def find_hardcoded(dist: str) -> list[tuple[str, int, str]]:
             for m in dunder.finditer(line):
                 if re.match(r"\d+\.\d", m.group(1)):
                     values.append(m.group(1))
+            for m in _AUSGEGEBENE_VERSION.finditer(line):
+                values.append(m.group(1))
             if any("+" not in v for v in values):
                 hits.append((str(path.relative_to(ROOT)), lineno, line.strip()))
     return hits
