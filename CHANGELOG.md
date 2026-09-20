@@ -7,6 +7,20 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Behoben — jeder Treffer der Discovery API brach die Formatierung ab
+
+`_format_resource_summary` und `_format_resource_detail` lasen die MMS-ID aus
+`doc["context"]["mmsid"]`. Die Discovery API liefert `context` jedoch als
+String (`"L"`), die ID steht in `pnx.display.mms[0]`. Jede Suche mit
+mindestens einem Treffer endete deshalb in `AttributeError` und erreichte den
+Aufrufer als «Unbekannter Fehler»; nur leere Suchen liefen durch. Gemessen am
+20.9.2026 mit einer echten Antwort (17'233 Treffer für `any,contains,Einstein`).
+
+Neu liest `_mmsid()` die ID aus `pnx.display.mms`, mit Rückfall auf
+`pnx.control.sourcerecordid`; ein `context`-Objekt mit `mmsid` wird weiterhin
+akzeptiert. Die Fixtures enthielten bis dahin keine MMS-ID, der Pfad war nie
+mit echten Daten geprüft.
+
 ### Behoben — ein Fehlschlag der Quelle sah aus wie eine Antwort (FID-003, SEC-028)
 
 Zwei `high`-Befunde des Re-Audits, beide an derselben Stelle: Ein Transport-,
