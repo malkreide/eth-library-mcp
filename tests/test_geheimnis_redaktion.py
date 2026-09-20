@@ -208,3 +208,107 @@ def test_die_dokumentation_behauptet_die_redaktion_nicht_ohne_deckung():
     text = Path(__file__).resolve().parent.parent / "SECURITY.md"
     flach = re.sub(r"\s+", " ", text.read_text(encoding="utf-8"))
     assert "never logged" in flach
+
+
+# ── Die beiden Wege, die der Codex-Review auf PR #63 gefunden hat ──────────
+
+
+@pytest.fixture
+def sammelnder_handler():
+    """Ein eigener Handler mit eigenem Formatter, wie ihn ein Log-Shipper haette.
+
+    Absichtlich NICHT der Root-Handler: Die Frage ist gerade, ob die Redaktion
+    auch dort greift, wo jemand anderes formatiert und serialisiert.
+    """
+    import io
+
+    puffer = io.StringIO()
+    handler = logging.StreamHandler(puffer)
+    handler.setFormatter(logging.Formatter("%(message)s | url=%(url)s"))
+    log = logging.getLogger("redaktionssonde")
+    log.handlers = [handler]
+    log.setLevel(logging.INFO)
+    log.propagate = False
+    try:
+        yield log, puffer
+    finally:
+        log.handlers = []
+
+
+URL = f"https://api.library.ethz.ch/x?q=1&apikey={SCHLUESSEL}"
+
+
+def test_der_traceback_einer_ausnahme_wird_redigiert(sammelnder_handler):
+    """`Formatter.format()` haengt den Traceback NACH der Nachricht an.
+
+    Eine Redaktion, die nur `msg` und `args` anfasst, laesst ihn unberuehrt --
+    und httpx-Ausnahmen fuehren die vollstaendige URL in ihrem Text. Gemessen
+    am 20.9.2026, bevor dieser Test existierte.
+    """
+    configure_logging()
+    log, puffer = sammelnder_handler
+    try:
+        raise ValueError(f"request failed for url {URL}")
+    except ValueError:
+        log.exception("upstream kaputt", extra={"url": "-"})
+
+    aus = puffer.getvalue()
+    # Positivkontrolle: der Traceback ist ueberhaupt da. Ohne sie bestuende
+    # dieser Test auch dann, wenn die Ausnahme gar nicht protokolliert wuerde.
+    assert "Traceback" in aus
+    assert "ValueError" in aus
+    assert SCHLUESSEL not in aus
+    assert PLATZHALTER in aus
+
+
+def test_ein_extra_feld_wird_redigiert(sammelnder_handler):
+    """`Logger.makeRecord` mischt `extra` erst NACH der Datensatz-Fabrik ein.
+
+    Die Fabrik allein kann diese Felder deshalb nicht sehen -- ein strukturierter
+    Handler, der `record.__dict__` serialisiert, gaebe sie unredigiert aus.
+    """
+    configure_logging()
+    log, puffer = sammelnder_handler
+    log.info("mit extra", extra={"url": URL})
+
+    aus = puffer.getvalue()
+    # Positivkontrolle: das Feld ist ueberhaupt im Ausgabeformat gelandet.
+    assert "url=https://api.library.ethz.ch" in aus
+    assert SCHLUESSEL not in aus
+    assert PLATZHALTER in aus
+
+
+def test_der_makerecord_haken_stapelt_sich_nicht():
+    """Wie bei der Fabrik: mehrfaches Konfigurieren darf nicht schachteln."""
+    configure_logging()
+    haken_nach_erstem = logging.Logger.makeRecord
+    configure_logging()
+    configure_logging()
+    assert logging.Logger.makeRecord is haken_nach_erstem
+
+
+def test_exc_info_bleibt_ein_tripel_und_wird_nicht_zu_text(sammelnder_handler):
+    """Die Abwehr gegen einen naheliegenden Fehlgriff in der Redaktion selbst.
+
+    Wer `record.__dict__` stumpf ueber `str()` redigiert, macht aus dem
+    `(Typ, Wert, Traceback)`-Tripel eine Zeichenkette. Nichts schlaegt fehl --
+    aber jeder Handler, der danach `formatException` aufruft, bekommt Schrott.
+    Deshalb steht `exc_info` in `_EIGENE_BEHANDLUNG`, und deshalb prueft das
+    hier jemand nach.
+    """
+    configure_logging()
+    log, _ = sammelnder_handler
+    aufgefangen: list[logging.LogRecord] = []
+    log.addHandler(
+        type("Faenger", (logging.Handler,), {"emit": lambda s, r: aufgefangen.append(r)})()
+    )
+
+    try:
+        raise ValueError(f"boom {URL}")
+    except ValueError:
+        log.exception("kaputt", extra={"url": "-"})
+
+    (datensatz,) = [r for r in aufgefangen if r.exc_info]
+    assert isinstance(datensatz.exc_info, tuple)
+    assert len(datensatz.exc_info) == 3
+    assert datensatz.exc_info[0] is ValueError
