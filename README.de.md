@@ -300,7 +300,7 @@ antwortete dieser Server mit `"version": ""` — in beiden Aeren —, waehrend
 
 | Feld | Wert | Quelle |
 |---|---|---|
-| `name` | `eth_library_mcp` | der programmatische Bezeichner |
+| `name` | `eth-library-mcp` | der programmatische Bezeichner — dieselbe Zeichenkette wie der Distributionsname in `pyproject.toml`, `packages[0].identifier` in `server.json` und das Suffix des Registry-Namens `io.github.malkreide/eth-library-mcp`. Hier stand `eth_library_mcp`, der Modulpfad: ein Name, unter dem dieser Server nirgends zu beziehen ist. |
 | `title` | ETH-Bibliothek Zürich | `SERVER_TITLE` in `server.py` — der einzige Wert ohne Quelle ausserhalb |
 | `version` | Version der installierten Distribution | `importlib.metadata`, kann daher nicht von `pyproject.toml` wegdriften |
 | `description` | Kurzbeschreibung der Distribution | `importlib.metadata` |

@@ -591,10 +591,45 @@ ruff format --check src/ tests/ scripts/
 python scripts/check_version_sync.py
 ```
 
-Matrix: Python 3.11, 3.12, 3.13. Trigger: Push und PR auf `main`. Alle Gates
-laufen in einem Job auf allen drei Feldern — keine `if:`-Ausnahme, kein
-zweiter lint-Job. Ein `fail-fast: false` steht nicht da: Eine rote 3.11
+Dazu, im zweiten Job (siehe unten):
+
+```bash
+docker build .
+```
+
+Matrix: Python 3.11, 3.12, 3.13. Trigger: Push und PR auf `main`. Diese sechs
+Gates laufen in **einem** Job auf allen drei Feldern — keine `if:`-Ausnahme,
+kein zweiter lint-Job. Ein `fail-fast: false` steht nicht da: Eine rote 3.11
 bricht 3.12 und 3.13 ab, bevor sie etwas sagen.
+
+Daneben steht seit dem 20.9.2026 ein **zweiter Job**, `docker`, mit genau
+einem Schritt:
+
+```bash
+docker build .
+```
+
+Er gehoert nicht in die Matrix: Das Dockerfile bringt seine eigene
+Python-Version mit, und in der Matrix liefe derselbe Build dreimal identisch.
+Er baut nur, er schiebt nichts — keine Registry, keine Zugangsdaten.
+
+Der Grund, warum es ihn gibt, ist eine Luecke der Art, die dieses Dokument
+sonst beschreibt: Das Dockerfile war ueber Monate **nicht baubar**. Es kopierte
+`pyproject.toml README.md` ohne `LICENSE`, waehrend `pyproject.toml` die Datei
+unter `license = { file = "LICENSE" }` fuehrt; hatchling bricht dann mit
+`OSError: License file does not exist: LICENSE` ab. Die CI war die ganze Zeit
+gruen, weil sie den Container nie gebaut hat. Behoben wurde es von Hand
+(f4ab5b5), gemessen hat es nichts.
+
+**Das Basis-Image ist auf `python:3.13-slim` gepinnt**, und der Pin hat einen
+Gegner: `.github/dependabot.yml` fuehrt das `docker`-Oekosystem und hob das
+Image am 28.8.2026 auf `3.14-slim` (2719b9d), waehrend die Matrix stehenblieb —
+der ausgelieferte Container lief drei Wochen lang auf einer Version, die kein
+Gate prueft. Der Pin steht deshalb nicht allein: Ein `ignore`-Eintrag im
+`docker`-Block haelt Major und Minor fest. Er faellt, wenn die Matrix 3.14
+mitfaehrt, und dann gehoeren Matrix, Classifier und Image in denselben PR.
+Sicherheitsaktualisierungen friert er nicht ein: `3.13-slim` ist ein
+bewegliches Tag.
 
 ### Live-Tests
 

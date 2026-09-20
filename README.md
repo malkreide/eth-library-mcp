@@ -297,7 +297,7 @@ told the registry `0.3.4`. It now declares:
 
 | Field | Value | Source |
 |---|---|---|
-| `name` | `eth_library_mcp` | the programmatic identifier |
+| `name` | `eth-library-mcp` | the programmatic identifier — the same string as the distribution name in `pyproject.toml`, `packages[0].identifier` in `server.json` and the suffix of the registry name `io.github.malkreide/eth-library-mcp`. It used to read `eth_library_mcp`, the module path: a name under which this server is available nowhere. |
 | `title` | ETH-Bibliothek Zürich | `SERVER_TITLE` in `server.py` — the only value with no source outside |
 | `version` | the installed distribution's version | `importlib.metadata`, so it cannot drift from `pyproject.toml` |
 | `description` | the distribution summary | `importlib.metadata` |

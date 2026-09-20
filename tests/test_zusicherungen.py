@@ -160,6 +160,40 @@ async def test_kein_werkzeug_behauptet_zu_schreiben_oder_zu_zerstoeren():
     assert not widersprueche, f"read-only, aber destructiveHint=True: {widersprueche}"
 
 
+@pytest.mark.anyio
+async def test_jede_werkzeugbeschreibung_traegt_die_kurzbeschreibung_zuerst():
+    """Die erste Zeile ist das, was eine Werkzeugliste anzeigt (OBS).
+
+    Das SDK reicht den Docstring roh durch: Es dedentet nicht, und es streift
+    keinen fuehrenden Umbruch ab. Ein Docstring, der mit `\n` nach den
+    Anfuehrungszeichen beginnt, erzeugt deshalb eine Beschreibung, deren
+    erste Zeile leer ist -- und ein Client, der nur die erste Zeile zeigt,
+    zeigt nichts.
+
+    Gemessen am 20.9.2026 am Draht: `eth_search_resources` war so gesetzt,
+    die fuenf anderen nicht. Im Quelltext sieht der Unterschied nach Formatsache
+    aus; erst `tools/list` zeigt, dass er beim Client ankommt.
+    """
+    werkzeuge = await werkzeuge_am_draht()
+    assert werkzeuge, "tools/list lieferte keine Werkzeuge"
+
+    leer = [w["name"] for w in werkzeuge if not (w.get("description") or "").split("\n")[0].strip()]
+    assert not leer, f"Werkzeuge, deren Beschreibung mit einer Leerzeile beginnt: {leer}"
+
+
+@pytest.mark.anyio
+async def test_jedes_werkzeug_hat_ueberhaupt_eine_beschreibung():
+    """Positivkontrolle zur Zeile darueber.
+
+    Ein Werkzeug ganz ohne Docstring hat eine leere Beschreibung -- und die
+    hat auch keine leere erste Zeile, weil sie gar keine Zeile hat. Der Test
+    darueber waere dafuer gruen.
+    """
+    werkzeuge = await werkzeuge_am_draht()
+    ohne = [w["name"] for w in werkzeuge if not (w.get("description") or "").strip()]
+    assert not ohne, f"Werkzeuge ohne Beschreibung: {ohne}"
+
+
 # ══ M3b: die generische Fehlermaskierung (OBS-002) ════════════════════════
 
 
