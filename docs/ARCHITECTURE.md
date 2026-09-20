@@ -57,19 +57,75 @@ backlog — not because we ignored it, but because the LLM ergonomics
 argument outweighs the architectural-purity argument for this profile
 (read-only Public Open Data, single-user MCP server).
 
-## Tool returns: Markdown vs. structured
+## Tool returns: Markdown *and* structured
 
-The audit's `SDK-002` finding flagged that tools return Markdown strings
-instead of structured Pydantic models. This is acknowledged and
-**deferred to a future v1.0**:
+The five data-serving tools return a `CallToolResult`: a Markdown text block,
+plus `structuredContent` with three fields.
 
-- Changing the return shape is a breaking change for every consumer.
-- FastMCP's structured-output path is still maturing; Markdown remains
-  the most reliable form for LLM consumption today.
-- The `Quelle:` attribution line (`CH-004`) provides provenance without
-  needing a structured field.
+| Field | Meaning |
+|---|---|
+| `returned` | number of records **in this response** |
+| `total` | total hits per the source, `null` where the source names none |
+| `hint` | the next search to try — set **only** when `returned == 0` |
 
-Tracking issue: file before bumping to `0.3.x`.
+`eth_library_info` is the exception and stays `-> str`: it queries no source,
+has no empty set and no error channel.
+
+### Why both, and what it costs
+
+The audit's `SDK-002` finding asked for structured returns; `FID-003` asked
+for the next step on an empty result to live in a field rather than in prose.
+Markdown alone could not answer the second: the hint was in the running text
+and inseparable from the result, so a consumer wanting to know whether
+anything came back at all had to read Markdown.
+
+A Pydantic return model would have satisfied both — and turned the text block
+into a JSON dump, which is the worse form for the reader this server exists
+for. Returning `CallToolResult` keeps the Markdown and adds the fields beside
+it.
+
+The price is measured, not assumed: a `-> CallToolResult` annotation drops the
+tool's `outputSchema` from `tools/list`, because the SDK derives that schema
+from the return annotation and offers no way to declare one by hand. What is
+lost is `{"result": {"type": "string"}}` — a schema that said the tool returns
+a string and nothing more. The shape of `structuredContent` is documented in
+the table above and in each tool's description, which is where the model reads
+it anyway.
+
+### What did *not* change
+
+The audit's argument for Markdown stands: it remains the most reliable form
+for LLM consumption, and the `Quelle:` attribution line (`CH-004`) still
+carries provenance in the text.
+
+## The error channel (FID-003 / OBS-001)
+
+A failed call and an empty result answer two different questions, and the
+server keeps them apart:
+
+| Outcome | On the wire | Next step for the model |
+|---|---|---|
+| Hits | `isError: false`, `returned > 0`, `hint: null` | read the records |
+| Empty set | `isError: false`, `returned: 0`, `hint` set | run the search named in `hint` |
+| Failure | `isError: true`, no `structuredContent` | check configuration, credentials, endpoint |
+
+Every tool ends its `except` by raising `ToolError` with the message from
+`_handle_error`. The SDK turns that into `isError: true`; the message itself
+is sanitised (`OBS-002`), so no upstream body and no internal exception class
+reaches the caller.
+
+Until 0.4.1 those messages were **returned** instead of raised. A connection
+failure, a 401 and a 429 all arrived as ordinary, successful tool results —
+measured over the real ASGI stack during the 19 September 2026 re-audit, with
+a positive control showing the error channel worked and was simply never used
+for upstream failures.
+
+The same release removed a conflation in the message itself: the 404 branch of
+a search read *«Keine Ergebnisse oder Endpunkt nicht gefunden»*, folding a
+statement about the holdings and one about the configuration into one
+sentence. `BUG-02` in this repository was exactly the second case — a route
+that had vanished from the gateway — offered to the model as a possible empty
+set.
 
 ## Logging architecture (OBS-003 / OBS-004)
 
