@@ -7,6 +7,61 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Behoben — vier Zusicherungen waren behauptet, nicht geprueft (OPS-010)
+
+Der Re-Audit vom 19.9.2026 fuhr sechs Mutationen gegen die Suite. Zwei
+schlugen an, **vier nicht**: Egress-Allow-List, Werkzeug-Annotationen,
+generische Fehlermaskierung und die Quellenangabe je Antwort liessen sich alle
+entfernen, ohne dass ein einziger Test rot wurde. Alle vier standen im Code,
+waren in der Doku beschrieben und von nichts festgehalten.
+
+Nach diesem Stand schlagen **6 von 6** an:
+
+| Mutation | vorher | jetzt |
+|---|---|---|
+| Egress-Pruefung entschaerft | 0 rot | 2 rot |
+| `readOnlyHint` geloescht | 0 rot | 1 rot |
+| Maskierung gibt `{Typ}: {e}` aus | 0 rot | 1 rot |
+| Quellenangabe nicht angehaengt | 0 rot | 2 rot |
+| CORS-Wildcard (Positivkontrolle) | 1 rot | 1 rot |
+| Upstream-Body durchgereicht (Positivkontrolle) | 1 rot | 1 rot |
+
+- **`scripts/gegenprobe.py`** faehrt genau diese Mutationen und meldet, welcher
+  Test dabei faellt. Es gibt das Skript, weil die Handarbeit gemessen vier von
+  sechs Luecken uebersehen hat -- und weil CLAUDE.md die Gegenprobe zwar
+  verlangt, aber als Agenten-Anweisung, nicht als Beitragsanleitung.
+
+  Drei Eigenschaften, die je eine Messung gekostet haben: Es zieht die
+  **Grundlast** ab (die Arbeitskopie hat kein `.git`, also fallen dort 13 Tests
+  in jedem Lauf -- der erste Lauf meldete allein deshalb fuer jede Mutation
+  «OK»), es fuehrt **Positivkontrollen** mit (bleiben die stumm, hat der Lauf
+  nichts gemessen), und es scheitert **laut** an einem veralteten Suchmuster
+  statt still zu ueberspringen.
+
+- **`tests/test_zusicherungen.py`**, 17 Faelle, jeder mit Positivkontrolle. Die
+  Egress-Sperre wird an der **Routen-Zaehlung** gemessen und nicht am
+  Rueckgabetext: Eine gesperrte und eine gescheiterte Anfrage erzeugen
+  denselben Text (SEC-028), die Zahl der ausgehenden Anfragen unterscheidet sie
+  eindeutig. Die Annotationen werden am Draht ueber `tools/list` gemessen, nicht
+  im Quelltext -- eine Annotation, die unterwegs verlorengeht, ist fuer einen
+  Client nicht vorhanden.
+
+- **`tests/test_tools.py`**: Das `or` in
+  `assert "Unbekannter Fehler" in out or "Egress denied" in out` ist weg. Es
+  machte den Test unabhaengig davon gruen, ob die Sperre existiert -- ohne sie
+  laeuft die Anfrage in respx' `AllMockedAssertionError` und erzeugt genau den
+  ersten Text.
+
+- **`tests/test_server.py`**: `test_format_resource_detail()` hatte ausser dem
+  Docstring keinen Koerper. Er konnte nicht fallen und zaehlte trotzdem als
+  einer der gruenen; per AST ueber alle Testdateien war er der einzige seiner
+  Art. Jetzt mit Koerper -- und der deckte sofort auf, dass er nicht einmal
+  seinen Import brauchte.
+
+- **`CONTRIBUTING.md` / `.de.md`** beschreiben die Gegenprobe. Bis hierhin
+  ergab `grep -cniE 'gegenprobe|mutation'` dort je **0**.
+
+
 ## [0.4.1] – 2026-09-19
 
 Ein Sicherheitsfix und vier Stellen, an denen 0.4.0 etwas Falsches ueber sich

@@ -89,7 +89,38 @@ def test_format_resource_summary_empty():
 
 
 def test_format_resource_detail():
-    """_format_resource_detail erzeugt Markdown-Dokument."""
+    """_format_resource_detail erzeugt ein Markdown-Dokument.
+
+    Dieser Test hatte bis zum 20.9.2026 ausser diesem Docstring keinen
+    Koerper. Er konnte nicht fallen und zaehlte trotzdem als einer der gruenen
+    -- per AST ueber alle Testdateien gemessen war er der einzige seiner Art
+    (Audit-Befund OPS-010).
+    """
+    from eth_library_mcp.server import _format_resource_detail
+
+    # Die Primo-PNX-Struktur, wie `_format_resource_detail` sie liest. Sie ist
+    # aus dem Code abgeleitet und nicht aufgezeichnet: `tests/fixtures/
+    # PROVENANCE.md` haelt fest, dass die Discovery-Antwortkoerper mangels
+    # API-Schluessel nicht aufgenommen sind. Ein flaches `{"title": ...}`
+    # erzeugte hier «Kein Titel» -- der erste Anlauf dieses Tests tat genau das.
+    result = _format_resource_detail(
+        {
+            "pnx": {
+                "display": {
+                    "title": ["Die Alpen"],
+                    "creator": ["Anonymus"],
+                    "creationdate": ["1850"],
+                },
+                "addata": {"isbn": ["978-3-16-148410-0"]},
+            },
+            "context": {"mmsid": "991234567890"},
+        }
+    )
+    assert result.startswith("# Die Alpen")
+    assert "Anonymus" in result
+    assert "1850" in result
+    assert "991234567890" in result
+    assert "978-3-16-148410-0" in result
 
 
 def test_handle_error_timeout():

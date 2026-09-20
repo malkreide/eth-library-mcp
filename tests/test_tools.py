@@ -200,4 +200,11 @@ async def test_egress_blocked_for_unknown_host(monkeypatch):
     monkeypatch.setattr(server, "DISCOVERY_BASE_URL", "https://evil.example.com/v1")
 
     out = await eth_search_resources(SearchResourcesInput(query="any,contains,x"))
-    assert "Unbekannter Fehler" in out or "Egress denied" in out
+    # Das frueher hier stehende `or "Egress denied" in out` machte diesen Test
+    # unabhaengig davon gruen, ob die Sperre ueberhaupt existiert: Ohne sie
+    # laeuft die Anfrage in respx' AllMockedAssertionError und erzeugt genau
+    # denselben Text. Die eigentliche Zusicherung -- dass gar keine Anfrage
+    # hinausgeht -- misst jetzt tests/test_zusicherungen.py an der
+    # Routen-Zaehlung. Hier bleibt nur, dass der Aufrufer keinen Erfolg
+    # gemeldet bekommt.
+    assert "Fehler" in out
