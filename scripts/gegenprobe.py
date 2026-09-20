@@ -14,9 +14,10 @@ beschrieben -- und von nichts festgehalten.
 Eine Handarbeit, die vier von sechs Luecken uebersieht, ist keine Pruefung.
 Deshalb steht die Liste jetzt hier, ausgeschrieben und ausfuehrbar.
 
-Seit FID-003 und SEC-028 sind es dreizehn Eintraege: die sechs von OPS-010 plus
-die sieben Zusicherungen, die mit dem Fehlerkanal und der Egress-Taxonomie
-dazukamen.
+Seit FID-003 und SEC-028 sind es sechzehn Eintraege: die sechs von OPS-010,
+die sieben, die mit dem Fehlerkanal und der Egress-Taxonomie dazukamen, und
+drei aus dem zweiten SEC-028-Durchgang vom 20.9.2026 -- dem, der den
+Wiederholungsrat aus dem generischen Schlusszweig geraeumt hat.
 Die Liste waechst mit jedem Befund, den jemand behebt -- das ist ihr Zweck.
 
 ## Was es nicht ist
@@ -119,7 +120,15 @@ MUTATIONEN: list[Mutation] = [
         kennung="M3",
         zusicherung="Generische Fehlermaskierung (OBS-002)",
         datei="src/eth_library_mcp/formatting.py",
-        alt='    return f"{prefix}Unbekannter Fehler. Bitte später erneut versuchen."',
+        alt=(
+            "    return (\n"
+            '        f"{prefix}Dieser Server konnte die Anfrage nicht verarbeiten. Das ist "\n'
+            '        "ein Fehler in diesem Server, keine Störung der Quelle. "\n'
+            '        f"{_wiederholungsrat(e)} "\n'
+            '        "Die Einzelheiten stehen im stderr-Log des Servers, unter dem Ereignis "\n'
+            "        \"'unhandled_exception'.\"\n"
+            "    )"
+        ),
         neu='    return f"{prefix}{type(e).__name__}: {e}"',
         erwartet=("test_der_generische_zweig_verraet_weder_klasse_noch_text",),
         bemerkung="Der Zweig, der Implementierungsdetails an das Modell gaebe.",
@@ -170,10 +179,7 @@ MUTATIONEN: list[Mutation] = [
         kennung="M7",
         zusicherung="Wiederholungsrat haengt am Diskriminator (SEC-028)",
         datei="src/eth_library_mcp/formatting.py",
-        alt=(
-            '    return WIEDERHOLUNG_MOEGLICH if getattr(e, "retryable", False) '
-            "else KEINE_WIEDERHOLUNG"
-        ),
+        alt="    return WIEDERHOLUNG_MOEGLICH if _ist_wiederholbar(e) else KEINE_WIEDERHOLUNG",
         neu="    return WIEDERHOLUNG_MOEGLICH",
         erwartet=("test_der_policy_verstoss_bekommt_keinen_wiederholungsrat",),
         bemerkung=(
@@ -221,16 +227,62 @@ MUTATIONEN: list[Mutation] = [
         kennung="M11",
         zusicherung="Die transiente Lage nennt die Egress-Policy nicht (SEC-028)",
         datei="src/eth_library_mcp/formatting.py",
-        alt='        return f"{prefix}Verbindungsfehler. Internetverbindung prüfen."',
+        alt=(
+            '        return f"{prefix}Verbindungsfehler. Internetverbindung prüfen. '
+            '{_wiederholungsrat(e)}"'
+        ),
         neu=(
-            '        return f"{prefix}Verbindungsfehler. Egress-Allow-List '
-            'und Internetverbindung prüfen."'
+            '        return f"{prefix}Verbindungsfehler. Egress-Allow-List und '
+            'Internetverbindung prüfen. {_wiederholungsrat(e)}"'
         ),
         erwartet=("test_die_transiente_lage_nennt_die_egress_policy_nicht",),
         bemerkung=(
             "Der zweite Schaden aus dem Ursprungsbefund: Wer wegen eines "
             "DNS-Zuckens in der Allow-List sucht, sucht eine Zeile fuer einen "
             "Host, der erlaubt ist."
+        ),
+    ),
+    Mutation(
+        kennung="M12",
+        zusicherung="Ein Programmfehler ist nicht wiederholbar (SEC-028)",
+        datei="src/eth_library_mcp/formatting.py",
+        alt="    return False",
+        neu="    return True",
+        erwartet=(
+            "test_ein_programmfehler_bekommt_keinen_wiederholungsrat",
+            "test_ein_programmfehler_kommt_mit_iserror_und_ohne_rat_an",
+        ),
+        bemerkung=(
+            "Stellt den Stand vom 20.9.2026 wieder her: Ein AttributeError in "
+            "diesem Server kommt beim Aufrufer als voruebergehende Stoerung an, "
+            "die sich gleich legen werde. Genau so ist der MMS-ID-Fehler "
+            "durchgerutscht."
+        ),
+    ),
+    Mutation(
+        kennung="M13",
+        zusicherung="Transportfehler bleiben wiederholbar (SEC-028)",
+        datei="src/eth_library_mcp/formatting.py",
+        alt="    if isinstance(e, (httpx.TimeoutException, httpx.ConnectError)):",
+        neu="    if False:",
+        erwartet=("test_die_transienten_lagen_tragen_den_wiederholungsrat",),
+        bemerkung=(
+            "Die Gegenrichtung von M12: Ohne den Typrueckfall gilt auch ein "
+            "Zeitablauf als endgueltig, und die Auskunft unterscheidet wieder "
+            "nichts -- bloss andersherum."
+        ),
+    ),
+    Mutation(
+        kennung="M14",
+        zusicherung="Das Feld schlaegt den Typrueckfall (SEC-028)",
+        datei="src/eth_library_mcp/formatting.py",
+        alt='    marke = getattr(e, "retryable", None)',
+        neu="    marke = None",
+        erwartet=("test_ein_gesetztes_feld_schlaegt_den_typrueckfall",),
+        bemerkung=(
+            "Der Rueckfall am Typ ist eine Notloesung fuer fremde Klassen. "
+            "Ueberstimmt er eine gesetzte Marke, entscheidet wieder der "
+            "Typname -- der Zustand, gegen den SEC-028 geschrieben ist."
         ),
     ),
     Mutation(
@@ -246,7 +298,7 @@ MUTATIONEN: list[Mutation] = [
         kennung="P2",
         zusicherung="Upstream-Body wird nicht durchgereicht (OBS-002)",
         datei="src/eth_library_mcp/formatting.py",
-        alt='        return f"{prefix}HTTP-Fehler {status}."',
+        alt='        return f"{prefix}HTTP-Fehler {status}. {_wiederholungsrat(e)}"',
         neu='        return f"{prefix}HTTP-Fehler {status}: {e.response.text}"',
         positivkontrolle=True,
         bemerkung="Bekannt anschlagend.",

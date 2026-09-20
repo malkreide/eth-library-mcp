@@ -45,6 +45,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from eth_library_mcp import client
 from eth_library_mcp.formatting import (
+    KEINE_WIEDERHOLUNG,
     SOURCE_ATTRIBUTION,
     _format_resource_detail,
     _format_resource_summary,
@@ -183,7 +184,11 @@ def test_der_generische_zweig_verraet_weder_klasse_noch_text():
     # Positivkontrolle: es kommt ueberhaupt eine Meldung, und sie nennt den
     # Kontext. Ohne diese Zeile bestuende der Test auch bei leerer Ausgabe.
     assert "Suche" in ausgabe
-    assert "Unbekannter Fehler" in ausgabe
+    # Hier stand bis zum 20.9.2026 «Unbekannter Fehler». Der Satz ist weg, weil
+    # er einen Wiederholungsrat trug (SEC-028, zweiter Durchgang); die
+    # Positivkontrolle haengt jetzt an der Absage, die an seine Stelle getreten
+    # ist. Was sie prueft, ist unveraendert: dass ueberhaupt etwas kommt.
+    assert KEINE_WIEDERHOLUNG in ausgabe
 
 
 def test_die_gedeckten_zweige_bleiben_unterscheidbar():
