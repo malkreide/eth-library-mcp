@@ -45,11 +45,51 @@ def _get_api_key() -> str | None:
     return os.environ.get("ETH_LIBRARY_API_KEY")
 
 
+class EgressError(PermissionError):
+    """Basis für jede Abweisung durch den Egress-Guard (SEC-028).
+
+    `retryable` ist der **Diskriminator**: ein Feld, das Code liest. Nicht der
+    Meldungstext — der bricht bei der ersten Umformulierung und ist bei
+    Lokalisierung sofort falsch.
+
+    Die Basisklasse bleibt `PermissionError`, damit ein bestehendes
+    `except PermissionError` um den Guard herum weiter greift. Die
+    Unterscheidung entsteht eine Ebene darunter, nicht durch Wegnehmen.
+    """
+
+    retryable: bool = False
+
+
+class EgressPolicyViolation(EgressError):
+    """Der Zielhost steht nicht in `ALLOWED_EGRESS_HOSTS`. Deterministisch.
+
+    Wiederholt sich beliebig oft gleich: Die Allow-List ist eine
+    Konfigurationsentscheidung dieses Servers und keine Aussage über die
+    Erreichbarkeit der Quelle. Ein Wiederholungsrat wäre hier falsch — siehe
+    `formatting._handle_error`, das genau an `retryable` entscheidet.
+    """
+
+    retryable = False
+
+    def __init__(self, host: str) -> None:
+        self.host = host
+        super().__init__(f"Egress denied: host {host!r} not in ALLOWED_EGRESS_HOSTS")
+
+
+# Was hier bewusst NICHT steht: ein `EgressResolutionError` für die transiente
+# Lage aus SEC-028. Dieser Guard löst nichts auf — er vergleicht den Hostnamen
+# aus der URL gegen ein `frozenset`. Ein DNS-Aussetzer erreicht den Aufrufer
+# deshalb als `httpx.ConnectError` bzw. `httpx.TimeoutException`, und beide
+# haben in `_handle_error` längst ihren eigenen Zweig. Eine Klasse ohne
+# Gegenstand anzulegen wäre die Fixture, die die Annahme ihres Autors kodiert
+# und sie nicht widerlegen kann: Kein Test könnte sie je auslösen.
+
+
 def _check_egress_allowed(url: str) -> None:
     """SEC-021: Verifiziert, dass der Host in der Egress-Allow-List steht."""
     host = urlparse(url).hostname or ""
     if host not in ALLOWED_EGRESS_HOSTS:
-        raise PermissionError(f"Egress denied: host {host!r} not in ALLOWED_EGRESS_HOSTS")
+        raise EgressPolicyViolation(host)
 
 
 async def _http_get(

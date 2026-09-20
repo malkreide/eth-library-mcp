@@ -10,7 +10,29 @@ from `server.py` for a stable import path):
 
 Every call goes through `_http_get()`, which calls `_check_egress_allowed()`
 before reaching the HTTP client. Any attempt to reach a host outside the
-allow-list raises `PermissionError` — the call never leaves the process.
+allow-list raises `EgressPolicyViolation` — the call never leaves the process.
+
+## The refusal says which kind it is (SEC-028)
+
+`EgressPolicyViolation` is a subclass of `EgressError`, which in turn subclasses
+`PermissionError` so an existing `except PermissionError` around the guard keeps
+working. What it adds is a **discriminator the code reads**: `retryable = False`.
+
+That flag is not decoration. The refusal is deterministic — the allow-list is a
+configuration decision of this server, and the answer is the same on every
+attempt. The message the caller gets therefore names the blocked host and the
+allow-list, and it says *«Ein erneuter Versuch ändert daran nichts.»* Until
+0.4.1 the same refusal arrived as *«Unbekannter Fehler. Bitte später erneut
+versuchen.»* — character-identical with the message for a `ValueError`, and
+with retry advice for a decision that never changes. A model reading it saw an
+outage where a configuration decision was.
+
+There is deliberately **no** `EgressResolutionError` for the transient half of
+SEC-028: this guard resolves nothing. It compares the hostname from the URL
+against a `frozenset`. A DNS hiccup reaches the caller as `httpx.ConnectError`
+or `httpx.TimeoutException`, both of which have had their own branch in
+`_handle_error` all along — and neither names the egress policy, so nobody is
+sent looking for an allow-list entry for a host that is already on it.
 
 ## Why this matters (SEC-021)
 

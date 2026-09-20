@@ -7,6 +7,104 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Behoben — ein Fehlschlag der Quelle sah aus wie eine Antwort (FID-003, SEC-028)
+
+Zwei `high`-Befunde des Re-Audits, beide an derselben Stelle: Ein Transport-,
+Autorisierungs- oder Policy-Fehler erreichte den Aufrufer als **gewoehnliches,
+erfolgreiches Tool-Result**.
+
+Gemessen am 19.9.2026 ueber den echten ASGI-Stack: `httpx.ConnectError` ergab
+`isError: False` mit «Verbindungsfehler. Internetverbindung pruefen.» im
+Ergebnisfeld. Die Positivkontrolle derselben Messung zeigte, dass der
+Fehlerkanal existiert und funktioniert — ein Validierungsfehler kam sehr wohl
+mit `isError: True` an. Der Server hat ihn fuer Ausfaelle der Quelle nur nie
+benutzt.
+
+Was sich am Draht aendert:
+
+| Ausgang | vorher | jetzt |
+|---|---|---|
+| Treffer | `isError: false` | unveraendert, dazu `returned`/`total` |
+| Null Treffer | `isError: false`, Hinweis im Fliesstext | dazu `hint` als Feld |
+| 401 / 403 / 404 / 429 / 5xx | **`isError: false`** | `isError: true` |
+| Zeitueberschreitung, Verbindungsfehler | **`isError: false`** | `isError: true` |
+| Gesperrter Host (Egress) | **`isError: false`**, «Unbekannter Fehler» | `isError: true`, nennt Host und Allow-List |
+
+- **Der 404 auf einer Suche ist keine Leermenge mehr.** Der Zweig lautete
+  woertlich «Keine Ergebnisse oder Endpunkt nicht gefunden (HTTP 404). Bitte
+  Suchanfrage oder API-Endpunkt pruefen.» — eine Aussage ueber den Bestand und
+  eine ueber die Konfiguration in einem Satz. `BUG-02` war in diesem Repo genau
+  der zweite Fall («Route weg, HTTP 404») und wurde hier als moegliche
+  Leermenge angeboten. Die Meldung sagt jetzt, dass nicht gesucht wurde, und
+  zeigt auf Basis-URL und Endpunkt statt auf die Query.
+- **Der Leermengen-Hinweis steht in einem Feld**, nicht nur im Text:
+  `structuredContent` traegt `returned`, `total` und `hint`. `hint` ist
+  ausschliesslich bei `returned == 0` gesetzt; `ergebnis()` weist die
+  Kombination «Hinweis neben Treffern» als Fehler ab, statt sie einer
+  Konvention zu ueberlassen.
+- **Zwei Werkzeuge nannten bei null Treffern ueberhaupt keinen naechsten
+  Schritt.** `eth_search_archive` und `eth_search_by_type` meldeten bloss
+  «Keine Treffer»; beide nennen jetzt den Filter, der die Suche einschraenkt,
+  und eine Abfrage, die man woertlich absetzen kann.
+- **`eth_get_resource` erfindet keine leere Huelle mehr.** Antwortete die
+  Quelle mit `docs: []`, lief das in `_format_resource_detail(data)` und
+  erzeugte ein Dokument mit der Ueberschrift «Kein Titel» — etwas, das wie ein
+  Datensatz aussah. Jetzt: Leermenge mit Hinweis auf die Herkunft der MMS-ID.
+
+**SEC-028 — der Policy-Verstoss ist keine Stoerung.** `_handle_error` mit
+einem `PermissionError` aus dem Egress-Guard ergab gemessen «Fehler bei Suche:
+Unbekannter Fehler. Bitte spaeter erneut versuchen.» — zeichengleich mit dem
+Ergebnis fuer ein `ValueError('boom')`, und mit einem **Wiederholungsrat fuer
+eine Absage, die bei jedem Versuch gleich ausfaellt**. Fuer das Modell las sich
+eine Konfigurationsentscheidung wie ein Ausfall.
+
+- Neue Typen in `client.py`: `EgressError(PermissionError)` als Basis,
+  `EgressPolicyViolation` mit `retryable = False`. Die Basis bleibt bewusst
+  `PermissionError`, damit ein bestehendes `except PermissionError` weiter
+  greift — die Unterscheidung entsteht eine Ebene darunter, nicht durch
+  Wegnehmen.
+- `retryable` ist ein **Feld, das Code liest**: `_handle_error` entscheidet
+  daran, ob die Meldung einen Wiederholungsrat traegt. Eine Unterscheidung
+  ueber den Meldungstext braeche bei der ersten Umformulierung.
+- Einen `EgressResolutionError` fuer die transiente Haelfte des Checks gibt es
+  bewusst **nicht**: Dieser Guard loest nichts auf, er vergleicht den Hostnamen
+  gegen ein `frozenset`. Ein DNS-Aussetzer kommt als `httpx.ConnectError` an
+  und hat dort laengst einen eigenen Zweig. Eine Klasse ohne Gegenstand waere
+  die Fixture, die die Annahme ihres Autors kodiert und sie nicht widerlegen
+  kann — kein Test koennte sie je ausloesen.
+
+**Was das kostet, ausdruecklich benannt.** Die fuenf datenliefernden Werkzeuge
+sind von `-> str` auf `-> CallToolResult` umgestellt. Damit faellt ihr
+`outputSchema` aus `tools/list`: Das SDK leitet das Schema aus der
+Rueckgabe-Annotation ab und bietet keinen Weg, eines von Hand zu deklarieren.
+Verloren geht `{"result": {"type": "string"}}` — ein Schema, das sagte, das
+Werkzeug gebe eine Zeichenkette zurueck, und sonst nichts. Der Markdown-Block
+bleibt unveraendert; eine Rueckgabe als Pydantic-Modell haette beides
+deklariert und den Textblock zu einem JSON-Dump gemacht. Die Form von
+`structuredContent` steht in `docs/ARCHITECTURE.md` und in jeder
+Werkzeugbeschreibung.
+
+**Gegenprobe.** `scripts/gegenprobe.py` faehrt jetzt **13 von 13** Mutationen,
+alle schlagen an — die sechs aus OPS-010 plus sieben neue:
+
+| Mutation | Tests rot |
+|---|---|
+| M5 Fehlerkanal: `raise ToolError` -> `return ergebnis` (Stand 0.4.1) | 7 |
+| M6 Egress-Zweig in `_handle_error` abgeschaltet | 5 |
+| M7 Wiederholungsrat unbedingt statt am Diskriminator | 2 |
+| M8 `hint` im strukturierten Feld auf `None` | 3 |
+| M9 Waechter «kein Hinweis neben Treffern» abgeschaltet | 1 |
+| M10 404-Wortlaut von 0.4.1 wiederhergestellt | 1 |
+| M11 Verbindungsfehler nennt wieder die Allow-List | 1 |
+
+192 Tests (vorher 164), alle Gates gruen auf 3.11, 3.12 und 3.13.
+
+**Nicht behoben, und warum.** Die Gaps von FID-003 nennen ausserdem, dass der
+Leermengen-Hinweis auch bei einer *Strukturabweichung* der Antwort erscheint —
+wenn die Felder eine Ebene tiefer liegen, zaehlt der Leser null Treffer und
+haengt den Hinweis an. Das ist der Gegenstand von **FID-006** («Struktur
+bestaetigen, bevor gezaehlt wird») und ein eigener Befund; er bleibt offen.
+
 ### Behoben — vier Zusicherungen waren behauptet, nicht geprueft (OPS-010)
 
 Der Re-Audit vom 19.9.2026 fuhr sechs Mutationen gegen die Suite. Zwei

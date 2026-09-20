@@ -36,12 +36,12 @@ bloss behauptet.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import httpx
 import pytest
 import respx
+from mcp.server.mcpserver.exceptions import ToolError
 
 from eth_library_mcp import client
 from eth_library_mcp.formatting import (
@@ -52,12 +52,9 @@ from eth_library_mcp.formatting import (
 )
 from eth_library_mcp.server import (
     SearchResourcesInput,
-    build_http_app,
     eth_search_resources,
 )
-
-MODERN = "2026-07-28"
-
+from tests.hilfen import text, werkzeuge_am_draht
 
 # ══ M1: die Egress-Allow-List (SEC-021) ═══════════════════════════════════
 
@@ -99,7 +96,11 @@ async def test_bei_gesperrtem_host_geht_keine_anfrage_hinaus(monkeypatch):
     )
     monkeypatch.setattr(server, "DISCOVERY_BASE_URL", "https://evil.example.com/v1")
 
-    await eth_search_resources(SearchResourcesInput(query="any,contains,x"))
+    # Seit FID-003 verlaesst der Fehlschlag das Werkzeug als `ToolError`. Das
+    # `pytest.raises` ist hier nicht die Zusicherung, sondern nur der Rahmen:
+    # gemessen wird die Zeile darunter.
+    with pytest.raises(ToolError):
+        await eth_search_resources(SearchResourcesInput(query="any,contains,x"))
 
     assert route.call_count == 0, (
         "Die Anfrage ist hinausgegangen — die Egress-Allow-List hat nicht gegriffen."
@@ -124,57 +125,6 @@ async def test_beim_erlaubten_host_geht_die_anfrage_hinaus():
 # ══ M2: die Werkzeug-Annotationen (ARCH-009) ══════════════════════════════
 
 
-def _envelope(method: str) -> dict[str, Any]:
-    from mcp_types import CLIENT_CAPABILITIES_META_KEY, PROTOCOL_VERSION_META_KEY
-
-    return {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": method,
-        "params": {
-            "_meta": {
-                PROTOCOL_VERSION_META_KEY: MODERN,
-                CLIENT_CAPABILITIES_META_KEY: {},
-            }
-        },
-    }
-
-
-def _unwrap(response: httpx.Response) -> dict[str, Any]:
-    body = response.text
-    for line in body.splitlines():
-        if line.startswith("data: "):
-            body = line[len("data: ") :]
-    return json.loads(body)
-
-
-async def _werkzeuge_am_draht() -> list[dict[str, Any]]:
-    """`tools/list` durch den echten ASGI-Stack.
-
-    Bewusst nicht `dir(server)`: Die Frage ist, was beim Aufrufer ankommt.
-    Eine Annotation, die im Quelltext steht und unterwegs verlorengeht, ist
-    fuer einen Client nicht vorhanden.
-    """
-    app = build_http_app()
-    async with app.router.lifespan_context(app):
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1:8000") as c:
-            antwort = await c.post(
-                "/mcp",
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json, text/event-stream",
-                    "Host": "127.0.0.1:8000",
-                    "MCP-Protocol-Version": MODERN,
-                    "Mcp-Method": "tools/list",
-                },
-                json=_envelope("tools/list"),
-            )
-    nutzlast = _unwrap(antwort)
-    assert "result" in nutzlast, f"tools/list antwortete mit {nutzlast!r}"
-    return nutzlast["result"]["tools"]
-
-
 @pytest.mark.anyio
 async def test_jedes_werkzeug_ist_als_nur_lesend_annotiert():
     """`readOnlyHint` ist die Grundlage der Aussage, dieser Server sei read-only.
@@ -183,7 +133,7 @@ async def test_jedes_werkzeug_ist_als_nur_lesend_annotiert():
     Suite vollstaendig gruen. Geprueft wird hier jedes Werkzeug einzeln und
     namentlich, damit die Fehlermeldung sagt, welches es war.
     """
-    werkzeuge = await _werkzeuge_am_draht()
+    werkzeuge = await werkzeuge_am_draht()
     # Positivkontrolle: es gibt ueberhaupt Werkzeuge. Eine leere Liste wuerde
     # jede Aussage darunter erfuellen.
     assert werkzeuge, "tools/list lieferte keine Werkzeuge"
@@ -201,7 +151,7 @@ async def test_kein_werkzeug_behauptet_zu_schreiben_oder_zu_zerstoeren():
     `readOnlyHint: True` neben einem `destructiveHint: True` waere ein
     Widerspruch, den der erste Test nicht sieht.
     """
-    werkzeuge = await _werkzeuge_am_draht()
+    werkzeuge = await werkzeuge_am_draht()
     assert werkzeuge
     widersprueche = [
         w["name"] for w in werkzeuge if (w.get("annotations") or {}).get("destructiveHint") is True
@@ -313,11 +263,14 @@ async def test_jede_werkzeugantwort_traegt_die_quellenangabe(name):
                 json={"docs": [{"title": "Ein Buch", "mmsid": "991"}], "info": {"total": 1}},
             )
         )
-        ausgabe = await aufruf()
+        ergebnis = await aufruf()
 
     # Positivkontrolle: die Antwort ist ueberhaupt eine Antwort und keine
-    # Fehlermeldung. Ohne sie bestuende der Test auch dann, wenn jeder Aufruf
-    # scheiterte -- sofern die Fehlermeldung zufaellig die Angabe traegt.
+    # Fehlermeldung. Seit FID-003 traegt sie dafuer ein eigenes Feld -- ein
+    # Fehlschlag kaeme gar nicht bis hierher, sondern als `ToolError`. Die
+    # Textprobe bleibt als zweite Naht daneben stehen.
+    assert ergebnis.is_error is False, f"{name} meldete einen Fehler"
+    ausgabe = text(ergebnis)
     assert "Fehler bei" not in ausgabe, f"{name} lieferte eine Fehlermeldung: {ausgabe[:120]}"
     assert SOURCE_ATTRIBUTION in ausgabe
 

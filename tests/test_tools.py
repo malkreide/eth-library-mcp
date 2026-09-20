@@ -12,7 +12,9 @@ for the (currently absent) live suite.
 from __future__ import annotations
 
 import httpx
+import pytest
 import respx
+from mcp.server.mcpserver.exceptions import ToolError
 
 from eth_library_mcp.server import (
     DISCOVERY_BASE_URL,
@@ -28,6 +30,7 @@ from eth_library_mcp.server import (
     eth_search_education,
     eth_search_resources,
 )
+from tests.hilfen import strukturiert, text
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -64,9 +67,15 @@ async def test_search_resources_happy_path():
         )
     )
 
-    out = await eth_search_resources(SearchResourcesInput(query="any,contains,Quantenphysik"))
+    ergebnis = await eth_search_resources(SearchResourcesInput(query="any,contains,Quantenphysik"))
+    out = text(ergebnis)
     assert "Quantenphysik" in out
     assert "Treffer" in out
+    assert strukturiert(ergebnis)["returned"] == 1
+    assert strukturiert(ergebnis)["hint"] is None, (
+        "Leermengen-Hinweis neben Treffern — das Modell wuerde verbreitern, "
+        "obwohl die Suche geliefert hat."
+    )
 
 
 @respx.mock
@@ -75,8 +84,13 @@ async def test_search_resources_no_hits():
         return_value=httpx.Response(200, json=_discovery_response([], total=0))
     )
 
-    out = await eth_search_resources(SearchResourcesInput(query="any,contains,xyz"))
-    assert "Keine Ergebnisse" in out
+    ergebnis = await eth_search_resources(SearchResourcesInput(query="any,contains,xyz"))
+    assert "Keine Ergebnisse" in text(ergebnis)
+    felder = strukturiert(ergebnis)
+    assert felder["returned"] == 0
+    # FID-003: der naechste Schritt steht in einem Feld, nicht nur im Fliesstext.
+    assert felder["hint"]
+    assert ergebnis.is_error is False, "Null Treffer ist ein gueltiges Ergebnis, kein Fehler"
 
 
 @respx.mock
@@ -85,7 +99,11 @@ async def test_search_resources_http_401_no_key_leak():
         return_value=httpx.Response(401, text="unauthorized: bad key sk-1234")
     )
 
-    out = await eth_search_resources(SearchResourcesInput(query="any,contains,x"))
+    # FID-003: Ein 401 ist ein Fehlschlag und kein Ergebnis. Bis 0.4.1 kam er
+    # als gewoehnliches, erfolgreiches Tool-Result beim Aufrufer an.
+    with pytest.raises(ToolError) as fehler:
+        await eth_search_resources(SearchResourcesInput(query="any,contains,x"))
+    out = str(fehler.value)
     assert "API-Key" in out
     # OBS-002: upstream body must not leak through
     assert "sk-1234" not in out
@@ -97,7 +115,9 @@ async def test_search_resources_http_500_body_not_leaked():
         return_value=httpx.Response(500, text="<html>stacktrace internals</html>")
     )
 
-    out = await eth_search_resources(SearchResourcesInput(query="any,contains,x"))
+    with pytest.raises(ToolError) as fehler:
+        await eth_search_resources(SearchResourcesInput(query="any,contains,x"))
+    out = str(fehler.value)
     assert "500" in out
     assert "stacktrace" not in out
     assert "<html>" not in out
@@ -113,8 +133,9 @@ async def test_get_resource_happy_path():
         return_value=httpx.Response(200, json={"docs": [_discovery_doc("Detail-Titel")]})
     )
 
-    out = await eth_get_resource(GetResourceInput(mmsid=mmsid))
-    assert "Detail-Titel" in out
+    ergebnis = await eth_get_resource(GetResourceInput(mmsid=mmsid))
+    assert "Detail-Titel" in text(ergebnis)
+    assert strukturiert(ergebnis)["returned"] == 1
 
 
 @respx.mock
@@ -124,9 +145,10 @@ async def test_get_resource_404_says_id():
         return_value=httpx.Response(404, text="not found")
     )
 
-    out = await eth_get_resource(GetResourceInput(mmsid=mmsid))
+    with pytest.raises(ToolError) as fehler:
+        await eth_get_resource(GetResourceInput(mmsid=mmsid))
     # 404 on a single-resource lookup → MMS-ID-Hinweis (not the search hint)
-    assert "MMS-ID" in out
+    assert "MMS-ID" in str(fehler.value)
 
 
 # ─── eth_search_archive ──────────────────────────────────────────────────────
@@ -140,8 +162,10 @@ async def test_search_archive_happy_path():
         )
     )
 
-    out = await eth_search_archive(
-        SearchArchiveInput(archive="ETH_Hochschularchiv", query="any,contains,Schule")
+    out = text(
+        await eth_search_archive(
+            SearchArchiveInput(archive="ETH_Hochschularchiv", query="any,contains,Schule")
+        )
     )
     assert "Archivstück" in out
     assert "Hochschularchiv" in out
@@ -158,8 +182,10 @@ async def test_search_by_type_happy_path():
         )
     )
 
-    out = await eth_search_by_type(
-        SearchByTypeInput(resource_type="maps", query="any,contains,Zürich")
+    out = text(
+        await eth_search_by_type(
+            SearchByTypeInput(resource_type="maps", query="any,contains,Zürich")
+        )
     )
     assert "Karte" in out
 
@@ -175,7 +201,7 @@ async def test_search_education_happy_path():
         )
     )
 
-    out = await eth_search_education(SearchEducationInput(topic="Volksschule Zürich"))
+    out = text(await eth_search_education(SearchEducationInput(topic="Volksschule Zürich")))
     assert "Volksschule" in out
 
 
@@ -199,12 +225,13 @@ async def test_egress_blocked_for_unknown_host(monkeypatch):
     # Temporarily redirect a base URL to a non-allow-listed host
     monkeypatch.setattr(server, "DISCOVERY_BASE_URL", "https://evil.example.com/v1")
 
-    out = await eth_search_resources(SearchResourcesInput(query="any,contains,x"))
     # Das frueher hier stehende `or "Egress denied" in out` machte diesen Test
     # unabhaengig davon gruen, ob die Sperre ueberhaupt existiert: Ohne sie
     # laeuft die Anfrage in respx' AllMockedAssertionError und erzeugt genau
     # denselben Text. Die eigentliche Zusicherung -- dass gar keine Anfrage
-    # hinausgeht -- misst jetzt tests/test_zusicherungen.py an der
-    # Routen-Zaehlung. Hier bleibt nur, dass der Aufrufer keinen Erfolg
-    # gemeldet bekommt.
-    assert "Fehler" in out
+    # hinausgeht -- misst tests/test_zusicherungen.py an der Routen-Zaehlung,
+    # die Meldung selbst tests/test_fehlerkanal.py. Hier bleibt, dass der
+    # Aufrufer keinen Erfolg gemeldet bekommt: seit FID-003 als `isError`.
+    with pytest.raises(ToolError) as fehler:
+        await eth_search_resources(SearchResourcesInput(query="any,contains,x"))
+    assert "Fehler" in str(fehler.value)

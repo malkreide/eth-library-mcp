@@ -18,7 +18,7 @@ Authentifizierung:
 
 Modulgrenzen (audit ARCH-004):
   client.py        — httpx, Egress-Allow-List, Lifespan
-  formatting.py    — Markdown-Rendering, Persons-Parsing, Error-Mapping
+  formatting.py    — Markdown-Rendering, Error-Mapping, Ergebnis-Bau
   logging_config.py — strukturiertes JSON-Logging auf stderr
   server.py        — MCPServer-Tools, Resources, Prompts (diese Datei)
 """
@@ -32,6 +32,8 @@ from typing import Literal
 
 from mcp.server.caching import CacheableMethod, CacheHint
 from mcp.server.mcpserver import Context, MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import CallToolResult
 from pydantic import BaseModel, ConfigDict, Field
 
 from eth_library_mcp import DESCRIPTION, HOMEPAGE_URL, __version__
@@ -41,6 +43,8 @@ from eth_library_mcp.client import (  # noqa: F401
     ALLOWED_EGRESS_HOSTS,
     DISCOVERY_BASE_URL,
     REQUEST_TIMEOUT,
+    EgressError,
+    EgressPolicyViolation,
     _check_egress_allowed,
     _get_api_key,
     _http_get,
@@ -53,6 +57,7 @@ from eth_library_mcp.formatting import (  # noqa: F401
     _format_resource_detail,
     _format_resource_summary,
     _handle_error,
+    ergebnis,
 )
 from eth_library_mcp.logging_config import configure_logging, get_logger
 
@@ -242,6 +247,33 @@ class SearchResourcesInput(BaseModel):
     )
 
 
+def _stichwort(query: str) -> str:
+    """Der Suchbegriff aus einer `Feld,Operator,Wert`-Anfrage.
+
+    Dient allein dem Leermengen-Hinweis (FID-003): Er soll einen Versuch
+    nennen, den das Modell wörtlich absetzen kann, statt «breiter suchen» zu
+    sagen. Enthält die Anfrage keine Kommas, ist sie selbst schon der Begriff.
+    """
+    letzter = query.rsplit(",", 1)[-1].strip()
+    return letzter or query.strip()
+
+
+def _breitere_suche(query: str) -> str:
+    """Ein konkreter, wörtlich absetzbarer nächster Suchversuch (FID-003).
+
+    Der Hinweis muss ein **anderer** Versuch sein als der eben gescheiterte.
+    Eine erste Fassung schlug stumpf `any,contains,<Stichwort>` vor; bei einer
+    Anfrage, die schon so lautete, war der nächste Schritt damit derselbe
+    Schritt. Gemessen am Draht, bevor es jemand las. Ein Hinweis, der die
+    gerade gescheiterte Abfrage wiederholt, ist genau der Allgemeinplatz, den
+    FID-003 ausschliesst.
+    """
+    begriff = _stichwort(query)
+    if query.strip().lower().startswith("any,contains,"):
+        return f"'any,contains,{begriff}*' — Trunkierung, findet auch Zusammensetzungen"
+    return f"'any,contains,{begriff}' — ohne Feldfilter, sucht in allen Feldern"
+
+
 @mcp.tool(
     name="eth_search_resources",
     annotations={
@@ -255,12 +287,18 @@ class SearchResourcesInput(BaseModel):
 async def eth_search_resources(
     params: SearchResourcesInput,
     ctx: Context | None = None,
-) -> str:
+) -> CallToolResult:
     """
     Durchsucht den Katalog der ETH-Bibliothek mit über 30 Millionen Ressourcen.
 
     Nutzt die Discovery API (api.library.ethz.ch/discovery/v1/resources).
     Unterstützt Freitextsuche, Feldsuche, Facetten-Filter und Pagination.
+
+    FID-003: Ein leeres Ergebnis ist eine Aussage über den Bestand, keine
+    Einladung zum Raten. Kommt nichts zurück, steht der nächste Suchversuch
+    im Feld `hint` der strukturierten Antwort; er gehört ausgeführt, bevor
+    Abwesenheit gemeldet wird. Eine geratene Angabe darf nie an die Stelle
+    eines fehlenden Treffers treten.
     """
     try:
         api_params: dict = {
@@ -293,9 +331,16 @@ async def eth_search_resources(
         total = data.get("info", {}).get("total", 0)
 
         if not docs:
-            return (
-                f"Keine Ergebnisse für '{params.query}'. "
-                "Tipp: Breitere Suche mit 'any,contains,Begriff' versuchen."
+            hinweis = (
+                f"Breiter suchen mit {_breitere_suche(params.query)}. "
+                "Danach den englischen Begriff versuchen. Erst wenn auch das "
+                "leer bleibt, ist der Bestand geprüft."
+            )
+            return ergebnis(
+                f"Keine Ergebnisse für '{params.query}'. Tipp: {hinweis}",
+                returned=0,
+                total=total,
+                hint=hinweis,
             )
 
         lines = [
@@ -318,12 +363,19 @@ async def eth_search_resources(
 
         lines.append("")
         lines.append(f"*{SOURCE_ATTRIBUTION}*")
-        return "\n".join(lines)
+        return ergebnis("\n".join(lines), returned=len(docs), total=total)
 
+    # Das `except Exception` ist ein Verteiler, keine Zusammenlegung. SEC-028
+    # verbietet eine Fehlerabbildung, die zwei Lagen vor der Ausgabe wieder zu
+    # einer macht -- und genau das tut `_handle_error` nicht: Der
+    # Policy-Verstoss hat dort einen eigenen Zweig vor allen anderen, und die
+    # drei Lagen (Verstoss, Stoerung, Unbekanntes) erzeugen drei verschiedene
+    # Meldungen. Nachgewiesen in tests/test_fehlerkanal.py; die Mutationen M6
+    # und M11 legen sie testweise wieder zusammen.
     except Exception as e:
         if ctx is not None:
             await ctx.warning(f"Discovery-Suche fehlgeschlagen: {type(e).__name__}")
-        return _handle_error(e, f"Suche nach '{params.query}'", is_search=True)
+        raise ToolError(_handle_error(e, f"Suche nach '{params.query}'", is_search=True)) from e
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -367,8 +419,14 @@ class GetResourceInput(BaseModel):
 async def eth_get_resource(
     params: GetResourceInput,
     ctx: Context | None = None,
-) -> str:
-    """Ruft eine einzelne Ressource der ETH-Bibliothek anhand ihrer MMS-ID ab."""
+) -> CallToolResult:
+    """Ruft eine einzelne Ressource der ETH-Bibliothek anhand ihrer MMS-ID ab.
+
+    FID-003: Kennt die Quelle die MMS-ID nicht, kommt ein leeres Ergebnis mit
+    `hint` — keine geratenen Angaben zu einem Datensatz, der nicht geliefert
+    wurde. Ein Fehlschlag (401, 404, Zeitüberschreitung) kommt dagegen als
+    `isError` und ist keine Aussage über den Bestand.
+    """
     try:
         api_params: dict = {
             "lang": params.lang,
@@ -377,13 +435,32 @@ async def eth_get_resource(
 
         data = await _http_get(DISCOVERY_BASE_URL, f"/resources/{params.mmsid}", api_params)
 
-        doc = data.get("docs", [{}])[0] if data.get("docs") else data
-        return _format_resource_detail(doc)
+        docs = data.get("docs")
+        if docs == []:
+            # Die Quelle hat geantwortet und kennt die ID nicht. Bis 0.4.1 lief
+            # dieser Fall in `_format_resource_detail(data)` und erzeugte ein
+            # Dokument mit der Ueberschrift «Kein Titel» — eine leere Huelle,
+            # die wie ein Datensatz aussah.
+            hinweis = (
+                "MMS-ID prüfen: Sie stammt aus einem Suchergebnis "
+                "(Feld `context.mmsid`) und ist 18-stellig. Mit "
+                "eth_search_resources nach dem Titel suchen und die ID von "
+                "dort übernehmen."
+            )
+            return ergebnis(
+                f"Kein Datensatz zur MMS-ID '{params.mmsid}'. Tipp: {hinweis}",
+                returned=0,
+                total=0,
+                hint=hinweis,
+            )
+
+        doc = docs[0] if docs else data
+        return ergebnis(_format_resource_detail(doc), returned=1, total=1)
 
     except Exception as e:
         if ctx is not None:
             await ctx.warning(f"Resource-Abruf fehlgeschlagen: {type(e).__name__}")
-        return _handle_error(e, f"Abruf MMS-ID '{params.mmsid}'", is_search=False)
+        raise ToolError(_handle_error(e, f"Abruf MMS-ID '{params.mmsid}'", is_search=False)) from e
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -431,8 +508,14 @@ class SearchArchiveInput(BaseModel):
 async def eth_search_archive(
     params: SearchArchiveInput,
     ctx: Context | None = None,
-) -> str:
-    """Durchsucht ein spezifisches Archiv oder eine Sammlung der ETH-Bibliothek."""
+) -> CallToolResult:
+    """Durchsucht ein spezifisches Archiv oder eine Sammlung der ETH-Bibliothek.
+
+    FID-003: Ein leeres Ergebnis nennt im Feld `hint` den nächsten Versuch —
+    das Archiv ist ein Filter, und der Bestand ausserhalb davon ist damit
+    nicht geprüft. Keine geratene Angabe an die Stelle eines fehlenden
+    Treffers setzen.
+    """
     archive_name = ARCHIVE_SOURCES.get(params.archive, params.archive)
 
     try:
@@ -450,7 +533,19 @@ async def eth_search_archive(
         total = data.get("info", {}).get("total", 0)
 
         if not docs:
-            return f"Keine Treffer im Archiv '{archive_name}' für Suche '{params.query}'."
+            hinweis = (
+                f"Der Filter auf '{archive_name}' schränkt die Suche ein; der "
+                "Bestand ausserhalb dieses Archivs ist damit nicht geprüft. "
+                "Dieselbe Anfrage ohne Archiv-Filter über eth_search_resources "
+                f"absetzen, oder breiter suchen mit {_breitere_suche(params.query)}."
+            )
+            return ergebnis(
+                f"Keine Treffer im Archiv '{archive_name}' für Suche "
+                f"'{params.query}'. Tipp: {hinweis}",
+                returned=0,
+                total=total,
+                hint=hinweis,
+            )
 
         lines = [
             f"## {archive_name}",
@@ -468,12 +563,12 @@ async def eth_search_archive(
 
         lines.append("")
         lines.append(f"*{SOURCE_ATTRIBUTION}*")
-        return "\n".join(lines)
+        return ergebnis("\n".join(lines), returned=len(docs), total=total)
 
     except Exception as e:
         if ctx is not None:
             await ctx.warning(f"Archiv-Suche fehlgeschlagen: {type(e).__name__}")
-        return _handle_error(e, f"Archivsuche '{archive_name}'", is_search=True)
+        raise ToolError(_handle_error(e, f"Archivsuche '{archive_name}'", is_search=True)) from e
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -522,8 +617,14 @@ class SearchByTypeInput(BaseModel):
 async def eth_search_by_type(
     params: SearchByTypeInput,
     ctx: Context | None = None,
-) -> str:
-    """Sucht Ressourcen eines bestimmten Typs (Karten, Bilder, Archive, etc.)."""
+) -> CallToolResult:
+    """Sucht Ressourcen eines bestimmten Typs (Karten, Bilder, Archive, etc.).
+
+    FID-003: Ein leeres Ergebnis nennt im Feld `hint` den nächsten Versuch —
+    der Typfilter ist eine Einschränkung, und was ausserhalb davon liegt, ist
+    damit nicht geprüft. Keine geratene Angabe an die Stelle eines fehlenden
+    Treffers setzen.
+    """
     type_label = RESOURCE_TYPES.get(params.resource_type, params.resource_type)
 
     try:
@@ -546,7 +647,18 @@ async def eth_search_by_type(
         total = data.get("info", {}).get("total", 0)
 
         if not docs:
-            return f"Keine {type_label} gefunden für Suche: '{params.query}'."
+            hinweis = (
+                f"Der Typfilter '{params.resource_type}' schränkt die Suche ein; "
+                "Ressourcen anderen Typs sind damit nicht geprüft. Ohne "
+                "Typfilter über eth_search_resources suchen, oder breiter mit "
+                f"{_breitere_suche(params.query)}."
+            )
+            return ergebnis(
+                f"Keine {type_label} gefunden für Suche: '{params.query}'. Tipp: {hinweis}",
+                returned=0,
+                total=total,
+                hint=hinweis,
+            )
 
         oa_label = " (Open Access)" if params.open_access_only else ""
         lines = [
@@ -567,12 +679,12 @@ async def eth_search_by_type(
 
         lines.append("")
         lines.append(f"*{SOURCE_ATTRIBUTION}*")
-        return "\n".join(lines)
+        return ergebnis("\n".join(lines), returned=len(docs), total=total)
 
     except Exception as e:
         if ctx is not None:
             await ctx.warning(f"Typ-Suche fehlgeschlagen: {type(e).__name__}")
-        return _handle_error(e, f"Typ-Suche '{type_label}'", is_search=True)
+        raise ToolError(_handle_error(e, f"Typ-Suche '{type_label}'", is_search=True)) from e
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -621,8 +733,13 @@ class SearchEducationInput(BaseModel):
 async def eth_search_education(
     params: SearchEducationInput,
     ctx: Context | None = None,
-) -> str:
-    """Kuratierte Suche nach bildungsrelevanten Ressourcen in der ETH-Bibliothek."""
+) -> CallToolResult:
+    """Kuratierte Suche nach bildungsrelevanten Ressourcen in der ETH-Bibliothek.
+
+    FID-003: Ein leeres Ergebnis nennt im Feld `hint` den nächsten Versuch.
+    Eine geratene Literaturangabe darf nie an die Stelle eines fehlenden
+    Treffers treten — auch dann nicht, wenn der Titel plausibel klingt.
+    """
     query = f"any,contains,{params.topic}"
 
     try:
@@ -648,9 +765,18 @@ async def eth_search_education(
         total = data.get("info", {}).get("total", 0)
 
         if not docs:
-            return (
-                f"Keine Bildungsressourcen gefunden für '{params.topic}'. "
-                "Tipp: Englischen Begriff oder breiteres Schlagwort versuchen."
+            einzelwort = params.topic.split()[0]
+            hinweis = (
+                "Englischen Begriff versuchen, oder ein einzelnes Schlagwort "
+                f"statt der ganzen Wendung: '{einzelwort}'. Breiter und ohne "
+                "die kuratierten Filter: eth_search_resources mit "
+                f"'any,contains,{einzelwort}'."
+            )
+            return ergebnis(
+                f"Keine Bildungsressourcen gefunden für '{params.topic}'. Tipp: {hinweis}",
+                returned=0,
+                total=total,
+                hint=hinweis,
             )
 
         oa_label = " (Open Access)" if params.open_access_only else ""
@@ -672,12 +798,12 @@ async def eth_search_education(
 
         lines.append("")
         lines.append(f"*{SOURCE_ATTRIBUTION}*")
-        return "\n".join(lines)
+        return ergebnis("\n".join(lines), returned=len(docs), total=total)
 
     except Exception as e:
         if ctx is not None:
             await ctx.warning(f"Bildungs-Suche fehlgeschlagen: {type(e).__name__}")
-        return _handle_error(e, f"Bildungssuche '{params.topic}'", is_search=True)
+        raise ToolError(_handle_error(e, f"Bildungssuche '{params.topic}'", is_search=True)) from e
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

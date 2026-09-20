@@ -14,6 +14,11 @@ beschrieben -- und von nichts festgehalten.
 Eine Handarbeit, die vier von sechs Luecken uebersieht, ist keine Pruefung.
 Deshalb steht die Liste jetzt hier, ausgeschrieben und ausfuehrbar.
 
+Seit FID-003 und SEC-028 sind es dreizehn Eintraege: die sechs von OPS-010 plus
+die sieben Zusicherungen, die mit dem Fehlerkanal und der Egress-Taxonomie
+dazukamen.
+Die Liste waechst mit jedem Befund, den jemand behebt -- das ist ihr Zweck.
+
 ## Was es nicht ist
 
 Kein allgemeines Mutationstest-Werkzeug. Es faehrt **genau die** Mutationen,
@@ -92,7 +97,7 @@ MUTATIONEN: list[Mutation] = [
         kennung="M1",
         zusicherung="Egress-Allow-List (SEC-021)",
         datei="src/eth_library_mcp/client.py",
-        alt='        raise PermissionError(f"Egress denied: host {host!r} not in ALLOWED_EGRESS_HOSTS")',
+        alt="        raise EgressPolicyViolation(host)",
         neu="        return",
         erwartet=("test_egress_sperrt_einen_fremden_host", "test_bei_gesperrtem_host"),
         bemerkung=(
@@ -126,6 +131,107 @@ MUTATIONEN: list[Mutation] = [
         alt='    lines.append(f"*{SOURCE_ATTRIBUTION}*")',
         neu="",
         erwartet=("test_der_detailformatierer_traegt_die_quellenangabe",),
+    ),
+    Mutation(
+        kennung="M5",
+        zusicherung="Upstream-Ausfaelle landen im Fehlerkanal (FID-003)",
+        datei="src/eth_library_mcp/server.py",
+        alt=(
+            "        raise ToolError("
+            "_handle_error(e, f\"Suche nach '{params.query}'\", is_search=True)) from e"
+        ),
+        neu=(
+            "        return ergebnis("
+            "_handle_error(e, f\"Suche nach '{params.query}'\", is_search=True), returned=0)"
+        ),
+        erwartet=("test_ein_upstream_ausfall_kommt_mit_iserror_an",),
+        bemerkung=(
+            "Stellt den Stand von 0.4.1 wieder her: Ein Transport- oder "
+            "Autorisierungsfehler kommt als gewoehnliches, erfolgreiches "
+            "Tool-Result an."
+        ),
+    ),
+    Mutation(
+        kennung="M6",
+        zusicherung="Policy-Verstoss hat einen eigenen Zweig (SEC-028)",
+        datei="src/eth_library_mcp/formatting.py",
+        alt="    if isinstance(e, EgressError):",
+        neu="    if False and isinstance(e, EgressError):",
+        erwartet=(
+            "test_der_policy_verstoss_nennt_die_allow_list_und_den_host",
+            "test_policy_verstoss_und_stoerung_sind_drei_verschiedene_meldungen",
+        ),
+        bemerkung=(
+            "Ohne den Zweig faellt die Absage in den generischen Schluss und "
+            "wird zeichengleich mit der fuer ein ValueError."
+        ),
+    ),
+    Mutation(
+        kennung="M7",
+        zusicherung="Wiederholungsrat haengt am Diskriminator (SEC-028)",
+        datei="src/eth_library_mcp/formatting.py",
+        alt=(
+            '    return WIEDERHOLUNG_MOEGLICH if getattr(e, "retryable", False) '
+            "else KEINE_WIEDERHOLUNG"
+        ),
+        neu="    return WIEDERHOLUNG_MOEGLICH",
+        erwartet=("test_der_policy_verstoss_bekommt_keinen_wiederholungsrat",),
+        bemerkung=(
+            "Gibt einer deterministischen Absage wieder einen "
+            "Wiederholungsrat -- der Befund, mit dem SEC-028 anfing."
+        ),
+    ),
+    Mutation(
+        kennung="M8",
+        zusicherung="Leermenge traegt einen maschinenlesbaren naechsten Schritt (FID-003)",
+        datei="src/eth_library_mcp/formatting.py",
+        alt='        structured_content={"returned": returned, "total": total, "hint": hint},',
+        neu='        structured_content={"returned": returned, "total": total, "hint": None},',
+        erwartet=("test_jede_leermenge_traegt_einen_konkreten_naechsten_schritt",),
+        bemerkung=(
+            "Der Hinweis bliebe im Fliesstext stehen und waere vom Ergebnis "
+            "wieder nicht trennbar -- der Zustand vor 0.4.1."
+        ),
+    ),
+    Mutation(
+        kennung="M9",
+        zusicherung="Kein Leermengen-Hinweis neben Treffern (FID-003)",
+        datei="src/eth_library_mcp/formatting.py",
+        alt="    if hint is not None and returned:",
+        neu="    if False:",
+        erwartet=("test_ein_hinweis_neben_treffern_wird_abgewiesen",),
+        bemerkung="Ein Hinweis neben Treffern schickt das Modell zum Verbreitern.",
+    ),
+    Mutation(
+        kennung="M10",
+        zusicherung="404 auf einer Suche ist keine Leermenge (FID-003)",
+        datei="src/eth_library_mcp/formatting.py",
+        alt='                    f"{prefix}Der Suchendpunkt wurde nicht gefunden (HTTP 404). "',
+        neu=(
+            '                    f"{prefix}Keine Ergebnisse oder Endpunkt '
+            'nicht gefunden (HTTP 404). "'
+        ),
+        erwartet=("test_der_404_auf_einer_suche_wird_nicht_als_leermenge_erzaehlt",),
+        bemerkung=(
+            "Der Wortlaut von 0.4.1. Er fuehrte eine Aussage ueber den Bestand "
+            "und eine ueber die Konfiguration in einem Satz zusammen."
+        ),
+    ),
+    Mutation(
+        kennung="M11",
+        zusicherung="Die transiente Lage nennt die Egress-Policy nicht (SEC-028)",
+        datei="src/eth_library_mcp/formatting.py",
+        alt='        return f"{prefix}Verbindungsfehler. Internetverbindung prüfen."',
+        neu=(
+            '        return f"{prefix}Verbindungsfehler. Egress-Allow-List '
+            'und Internetverbindung prüfen."'
+        ),
+        erwartet=("test_die_transiente_lage_nennt_die_egress_policy_nicht",),
+        bemerkung=(
+            "Der zweite Schaden aus dem Ursprungsbefund: Wer wegen eines "
+            "DNS-Zuckens in der Allow-List sucht, sucht eine Zeile fuer einen "
+            "Host, der erlaubt ist."
+        ),
     ),
     Mutation(
         kennung="P1",
